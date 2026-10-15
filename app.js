@@ -333,19 +333,38 @@ function resetTool(tool) {
 }
 
 function fileToDataURL(file) {
-  return new Promise((res, rej) => {
-    const r = new FileReader();
-    r.onload = e => res(e.target.result);
-    r.onerror = rej;
-    r.readAsDataURL(file);
-  });
-}
-
-function getImgDims(src) {
-  return new Promise(res => {
+  return new Promise((resolve, reject) => {
     const img = new Image();
-    img.onload = () => res({ w: img.naturalWidth, h: img.naturalHeight });
-    img.src = src;
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth || img.width;
+        canvas.height = img.naturalHeight || img.height;
+        const ctx = canvas.getContext('2d');
+        // Oq fon qo'yish (shaffof PNG/WebP rasmlar qora fon bo'lib qolmasligi uchun)
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.94);
+        resolve({
+          dataUrl,
+          w: canvas.width,
+          h: canvas.height
+        });
+      } catch (err) {
+        const r = new FileReader();
+        r.onload = e => resolve({ dataUrl: e.target.result, w: img.naturalWidth, h: img.naturalHeight });
+        r.onerror = reject;
+        r.readAsDataURL(file);
+      }
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error(`"${file.name}" rasmini yuklab bo'lmadi`));
+    };
+    img.src = url;
   });
 }
 
@@ -1149,8 +1168,7 @@ document.getElementById('in-word2pdf').addEventListener('change', async function
 
 function doPrint() {
   if (!state.wordHtml) return;
-  const w = window.open('', '_blank');
-  w.document.write(`<!DOCTYPE html><html><head>
+  const printHtml = `<!DOCTYPE html><html><head>
     <meta charset="UTF-8"/>
     <title>DocConvert — PDF Chop etish</title>
     <style>
@@ -1170,10 +1188,36 @@ function doPrint() {
       @media print{body{padding:0}}
     </style></head><body>
     ${state.wordHtml}
-    </body></html>`);
-  w.document.close();
-  w.focus();
-  setTimeout(() => { w.print(); }, 600);
+    </body></html>`;
+
+  const w = window.open('', '_blank');
+  if (w) {
+    w.document.write(printHtml);
+    w.document.close();
+    w.focus();
+    setTimeout(() => { w.print(); }, 600);
+  } else {
+    let iframe = document.getElementById('print-fallback-iframe');
+    if (!iframe) {
+      iframe = document.createElement('iframe');
+      iframe.id = 'print-fallback-iframe';
+      iframe.style.position = 'fixed';
+      iframe.style.right = '0';
+      iframe.style.bottom = '0';
+      iframe.style.width = '0';
+      iframe.style.height = '0';
+      iframe.style.border = 'none';
+      document.body.appendChild(iframe);
+    }
+    const doc = iframe.contentWindow.document;
+    doc.open();
+    doc.write(printHtml);
+    doc.close();
+    setTimeout(() => {
+      iframe.contentWindow.focus();
+      iframe.contentWindow.print();
+    }, 600);
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1279,9 +1323,8 @@ async function convertImgToPdf() {
       const pct  = 8 + ((i / state.imgFiles.length) * 84);
       setProgress('img2pdf', pct, `Rasm ${i + 1}/${state.imgFiles.length}: ${file.name}`);
 
-      const dataUrl = await fileToDataURL(file);
-      const dims    = await getImgDims(dataUrl);
-      const imgRatio = dims.w / dims.h;
+      const imgInfo = await fileToDataURL(file);
+      const imgRatio = imgInfo.w / imgInfo.h;
 
       // Yo'nalishni aniqlash
       let orient = 'portrait';
@@ -1319,8 +1362,7 @@ async function convertImgToPdf() {
       const x = margin + (aw - imgW) / 2;
       const y = margin + (ah - imgH) / 2;
 
-      const fmt = file.type === 'image/png' ? 'PNG' : 'JPEG';
-      doc.addImage(dataUrl, fmt, x, y, imgW, imgH);
+      doc.addImage(imgInfo.dataUrl, 'JPEG', x, y, imgW, imgH);
     }
 
     setProgress('img2pdf', 96, 'Fayl saqlanmoqda...');
@@ -1579,23 +1621,23 @@ function setSplitPreset(preset) {
 }
 
 function parsePageRanges(rangeStr, maxPages) {
+  if (!rangeStr) return [];
   const pages = new Set();
-  const parts = rangeStr.split(',');
+  const normalized = rangeStr.replace(/;/g, ',').trim();
+  const parts = normalized.split(',').map(s => s.trim()).filter(Boolean);
 
   for (const part of parts) {
-    const trimmed = part.trim();
-    if (!trimmed) continue;
-    if (trimmed.includes('-')) {
-      const [startStr, endStr] = trimmed.split('-');
-      const start = parseInt(startStr, 10);
-      const end = parseInt(endStr, 10);
+    if (part.includes('-')) {
+      const [startStr, endStr] = part.split('-');
+      const start = parseInt(startStr.trim(), 10);
+      const end = parseInt(endStr.trim(), 10);
       if (!isNaN(start) && !isNaN(end)) {
         const from = Math.max(1, Math.min(start, end));
         const to = Math.min(maxPages, Math.max(start, end));
         for (let i = from; i <= to; i++) pages.add(i);
       }
     } else {
-      const p = parseInt(trimmed, 10);
+      const p = parseInt(part, 10);
       if (!isNaN(p) && p >= 1 && p <= maxPages) {
         pages.add(p);
       }
