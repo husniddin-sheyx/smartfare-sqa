@@ -227,6 +227,26 @@
         <textarea id="ai-raw-text" class="ai-textarea" placeholder="Tahlil qilmoqchi bo'lgan matningizni shu yerga kiriting yoki nusxalab joylashtiring (kamida 15 ta so'z)..."></textarea>
       </div>
 
+      <!-- Document Statistics Card -->
+      <div class="ai-stats-card hidden" id="ai-stats-card">
+        <div class="ai-stat-item">
+          <span class="ai-stat-val" id="stat-words">0</span>
+          <span class="ai-stat-lbl">So'zlar</span>
+        </div>
+        <div class="ai-stat-item">
+          <span class="ai-stat-val" id="stat-chars">0</span>
+          <span class="ai-stat-lbl">Belgilar</span>
+        </div>
+        <div class="ai-stat-item">
+          <span class="ai-stat-val" id="stat-time">0 daq</span>
+          <span class="ai-stat-lbl">O'qish vaqti</span>
+        </div>
+        <div class="ai-stat-item">
+          <span class="ai-stat-val" id="stat-paras">0</span>
+          <span class="ai-stat-lbl">Xatboshilar</span>
+        </div>
+      </div>
+
       <!-- Quick AI Actions toolbar -->
       <div class="ai-actions-bar">
         <button type="button" class="ai-act-btn active" onclick="runAiTask('summary')">
@@ -278,7 +298,13 @@
           <div class="rc-meta" id="rcm-ai"></div>
         </div>
         <div class="rc-preview">
-          <div class="rcp-label">Sun'iy Intellekt Tahlili:</div>
+          <div class="rcp-top-bar">
+            <div class="rcp-label">Sun'iy Intellekt Tahlili:</div>
+            <button type="button" class="btn-tts" id="btn-ai-tts" onclick="toggleAiTts()" title="Ovozli eshitish">
+              <span id="tts-icon">🔊</span>
+              <span id="tts-label">Ovozli eshitish</span>
+            </button>
+          </div>
           <div class="ai-output-text" id="ai-output-content"></div>
         </div>
         <div class="rc-actions">
@@ -286,9 +312,16 @@
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
             Nusxa olish
           </button>
-          <button class="btn-dl" onclick="downloadAiOutputTxt()">
+          <button class="btn-dl" onclick="downloadAiOutputDocx()" title="Word (.docx) formatida yuklab olish">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            Word (.docx)
+          </button>
+          <button class="btn-dl" onclick="downloadAiOutputPdf()" title="PDF formatida yuklab olish">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            Saqlash (.txt)
+            PDF hisobot
+          </button>
+          <button class="btn-secondary" onclick="downloadAiOutputTxt()" title="Oddiy matn formatida">
+            TXT
           </button>
           <button class="btn-again" onclick="resetTool('ai')">Yangi tahlil</button>
         </div>

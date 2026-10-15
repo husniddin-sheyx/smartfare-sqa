@@ -307,6 +307,8 @@ function resetTool(tool) {
     state.aiDocText = '';
     state.aiDocName = '';
     state.aiLastOutput = '';
+    hide('ai-stats-card');
+    stopAiTts();
     const rawTa = document.getElementById('ai-raw-text');
     if (rawTa) rawTa.value = '';
     const qIn = document.getElementById('ai-user-query');
@@ -411,6 +413,7 @@ document.getElementById('in-ai').addEventListener('change', async function () {
 
     state.aiDocText = text.trim();
     state.aiDocName = file.name;
+    updateAiStats(state.aiDocText);
 
     setProgress('ai', 100, '✓ Matn yuklandi');
     setTimeout(() => {
@@ -423,6 +426,11 @@ document.getElementById('in-ai').addEventListener('change', async function () {
     console.error('[AI File Load]', err);
     showError('ai', 'Hujjatni o\'qishda xatolik: ' + (err.message || 'Format qo\'llab-quvvatlanmadi'));
   }
+});
+
+// Matn kiritilganda statistikani yangilash
+document.getElementById('ai-raw-text')?.addEventListener('input', function () {
+  updateAiStats(this.value);
 });
 
 function getActiveAiText() {
@@ -480,12 +488,13 @@ async function runAiTask(taskType) {
 
     document.getElementById('ai-res-title').textContent = title;
     document.getElementById('rcm-ai').textContent = `${text.split(/\s+/).length} ta so'z tahlil qilindi`;
-    document.getElementById('ai-output-content').textContent = result;
+    const outEl = document.getElementById('ai-output-content');
 
     setProgress('ai', 100, '✓ Tayyor!');
     setTimeout(() => {
       hide('pr-ai');
       show('rc-ai');
+      typewriterEffect(outEl, result);
     }, 400);
 
   } catch (err) {
@@ -524,12 +533,13 @@ Savol: "${query}"`;
 
     document.getElementById('ai-res-title').textContent = `Savol: "${query}"`;
     document.getElementById('rcm-ai').textContent = 'Savol-javob';
-    document.getElementById('ai-output-content').textContent = result;
+    const outEl = document.getElementById('ai-output-content');
 
     setProgress('ai', 100, '✓ Javob tayyor!');
     setTimeout(() => {
       hide('pr-ai');
       show('rc-ai');
+      typewriterEffect(outEl, result);
     }, 400);
   } catch (err) {
     showError('ai', 'Xato: ' + err.message);
@@ -615,6 +625,132 @@ ${topSentences.map((s, i) => `${i + 1}. ${s}`).join('\n\n')}
 💡 Eslatma: To'liq Gemini 1.5 Flash Sun'iy Intellekt tahlili uchun yuqoridagi «AI Kaliti» tugmasi orqali bepul Google Gemini API kalitingizni kiriting!`;
 }
 
+// ─── AI Statistics Updater ──────────────────────────────────────────────────
+function updateAiStats(text) {
+  const card = document.getElementById('ai-stats-card');
+  if (!card) return;
+  if (!text || !text.trim()) {
+    card.classList.add('hidden');
+    return;
+  }
+  const words = text.trim().split(/\s+/).filter(Boolean);
+  const wordCount = words.length;
+  const charCount = text.length;
+  const readTime = Math.max(1, Math.ceil(wordCount / 180));
+  const paras = text.split(/\n+/).map(p => p.trim()).filter(Boolean).length;
+
+  const wEl = document.getElementById('stat-words');
+  const cEl = document.getElementById('stat-chars');
+  const tEl = document.getElementById('stat-time');
+  const pEl = document.getElementById('stat-paras');
+
+  if (wEl) wEl.textContent = wordCount.toLocaleString();
+  if (cEl) cEl.textContent = charCount.toLocaleString();
+  if (tEl) tEl.textContent = `~${readTime} daq`;
+  if (pEl) pEl.textContent = paras.toLocaleString();
+  card.classList.remove('hidden');
+}
+
+// ─── Typewriter Effect ──────────────────────────────────────────────────────
+let typewriterTimer = null;
+function typewriterEffect(targetEl, fullText, callback) {
+  if (typewriterTimer) {
+    clearInterval(typewriterTimer);
+    typewriterTimer = null;
+  }
+  if (!targetEl) return;
+
+  targetEl.innerHTML = '';
+  const cursor = document.createElement('span');
+  cursor.className = 'typewriter-cursor';
+  targetEl.appendChild(cursor);
+
+  let index = 0;
+  const total = fullText.length;
+  const step = Math.max(2, Math.floor(total / 120));
+
+  typewriterTimer = setInterval(() => {
+    index += step;
+    if (index >= total) {
+      clearInterval(typewriterTimer);
+      typewriterTimer = null;
+      targetEl.textContent = fullText;
+      if (cursor.parentNode) cursor.remove();
+      if (callback) callback();
+      return;
+    }
+    targetEl.textContent = fullText.slice(0, index);
+    targetEl.appendChild(cursor);
+  }, 16);
+
+  targetEl.onclick = () => {
+    if (typewriterTimer) {
+      clearInterval(typewriterTimer);
+      typewriterTimer = null;
+      targetEl.textContent = fullText;
+      if (cursor.parentNode) cursor.remove();
+      if (callback) callback();
+    }
+  };
+}
+
+// ─── Text-to-Speech (TTS) ───────────────────────────────────────────────────
+let isAiSpeaking = false;
+function stopAiTts() {
+  if ('speechSynthesis' in window) {
+    window.speechSynthesis.cancel();
+  }
+  isAiSpeaking = false;
+  const btn = document.getElementById('btn-ai-tts');
+  const icon = document.getElementById('tts-icon');
+  const label = document.getElementById('tts-label');
+  if (btn) btn.classList.remove('speaking');
+  if (icon) icon.textContent = '🔊';
+  if (label) label.textContent = 'Ovozli eshitish';
+}
+
+function toggleAiTts() {
+  if (!('speechSynthesis' in window)) {
+    toast('Brauzeringiz ovozli o\'qishni qo\'llab-quvvatlamaydi', 'error');
+    return;
+  }
+  if (isAiSpeaking) {
+    stopAiTts();
+    return;
+  }
+  if (!state.aiLastOutput) {
+    toast('O\'qish uchun matn mavjud emas', 'error');
+    return;
+  }
+
+  window.speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(state.aiLastOutput);
+  utterance.rate = 1.0;
+  utterance.pitch = 1.0;
+
+  const voices = window.speechSynthesis.getVoices();
+  const uzVoice = voices.find(v => v.lang.startsWith('uz')) ||
+                  voices.find(v => v.lang.startsWith('ru')) ||
+                  voices.find(v => v.lang.startsWith('en')) || voices[0];
+  if (uzVoice) utterance.voice = uzVoice;
+
+  utterance.onstart = () => {
+    isAiSpeaking = true;
+    const btn = document.getElementById('btn-ai-tts');
+    const icon = document.getElementById('tts-icon');
+    const label = document.getElementById('tts-label');
+    if (btn) btn.classList.add('speaking');
+    if (icon) icon.textContent = '⏹';
+    if (label) label.textContent = 'To\'xtatish';
+  };
+
+  utterance.onend = () => stopAiTts();
+  utterance.onerror = () => stopAiTts();
+
+  window.speechSynthesis.speak(utterance);
+}
+
+// ─── Export Output Actions ──────────────────────────────────────────────────
 function copyAiOutput() {
   if (!state.aiLastOutput) return;
   navigator.clipboard.writeText(state.aiLastOutput)
@@ -627,6 +763,112 @@ function downloadAiOutputTxt() {
   const blob = new Blob([state.aiLastOutput], { type: 'text/plain;charset=utf-8' });
   saveAs(blob, 'ai_hujjat_tahlili.txt');
   toast('Tahlil matni yuklab olindi!', 'success');
+}
+
+async function downloadAiOutputDocx() {
+  if (!state.aiLastOutput) {
+    toast('Eksport uchun matn mavjud emas', 'error');
+    return;
+  }
+  try {
+    const { Document, Paragraph, TextRun, AlignmentType, BorderStyle } = docx;
+    const titleText = document.getElementById('ai-res-title')?.textContent || 'AI Hujjat Tahlili';
+    const lines = state.aiLastOutput.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+
+    const children = [
+      new Paragraph({
+        children: [new TextRun({ text: titleText, bold: true, size: 36, color: '1E3A8A', font: 'Calibri' })],
+        spacing: { before: 200, after: 120 }
+      }),
+      new Paragraph({
+        children: [new TextRun({
+          text: `Sana: ${new Date().toLocaleDateString('uz-UZ')}  |  Manba: ${state.aiDocName || 'Kiritilgan matn'}  |  DocConvert AI`,
+          italics: true, size: 18, color: '64748B', font: 'Calibri'
+        })],
+        spacing: { after: 300 },
+        border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: 'E2E8F0' } }
+      })
+    ];
+
+    lines.forEach(line => {
+      const isHeader = line.endsWith(':') && line.length < 60;
+      children.push(new Paragraph({
+        children: [new TextRun({
+          text: line,
+          bold: isHeader,
+          size: isHeader ? 24 : 22,
+          color: isHeader ? '0F172A' : '334155',
+          font: 'Calibri'
+        })],
+        spacing: { before: isHeader ? 160 : 60, after: 60 },
+        alignment: AlignmentType.LEFT
+      }));
+    });
+
+    const doc = new Document({
+      title: titleText,
+      creator: 'DocConvert AI',
+      sections: [{
+        properties: { page: { margin: { top: 1440, right: 1440, bottom: 1440, left: 1440 } } },
+        children
+      }]
+    });
+
+    const blob = await docx.Packer.toBlob(doc);
+    saveAs(blob, `${titleText.replace(/[^a-zA-Z0-9_\u0400-\u04FF]/g, '_')}.docx`);
+    toast('Word (.docx) hisoboti yuklab olindi!', 'success');
+  } catch (err) {
+    console.error('[Docx Export Error]', err);
+    toast('Word fayl yaratishda xatolik: ' + err.message, 'error');
+  }
+}
+
+function downloadAiOutputPdf() {
+  if (!state.aiLastOutput) {
+    toast('Eksport uchun matn mavjud emas', 'error');
+    return;
+  }
+  try {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const titleText = document.getElementById('ai-res-title')?.textContent || 'AI Hujjat Tahlili';
+
+    doc.setFillColor(79, 138, 255);
+    doc.rect(0, 0, 210, 8, 'F');
+
+    doc.setFont('Helvetica', 'bold');
+    doc.setFontSize(16);
+    doc.setTextColor(30, 41, 59);
+    doc.text(titleText, 15, 20);
+
+    doc.setFont('Helvetica', 'italic');
+    doc.setFontSize(9);
+    doc.setTextColor(100, 116, 139);
+    doc.text(`Sana: ${new Date().toLocaleDateString()} | Manba: ${state.aiDocName || 'Kiritilgan matn'} | DocConvert AI`, 15, 26);
+    doc.setDrawColor(226, 232, 240);
+    doc.line(15, 29, 195, 29);
+
+    doc.setFont('Helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.setTextColor(51, 65, 85);
+
+    const splitText = doc.splitTextToSize(state.aiLastOutput, 180);
+    let y = 36;
+    for (let i = 0; i < splitText.length; i++) {
+      if (y > 280) {
+        doc.addPage();
+        y = 20;
+      }
+      doc.text(splitText[i], 15, y);
+      y += 6;
+    }
+
+    doc.save(`${titleText.replace(/[^a-zA-Z0-9_\u0400-\u04FF]/g, '_')}.pdf`);
+    toast('PDF hisoboti yuklab olindi!', 'success');
+  } catch (err) {
+    console.error('[PDF Export Error]', err);
+    toast('PDF yaratishda xatolik: ' + err.message, 'error');
+  }
 }
 
 // ─── Modal AI Settings ──────────────────────────────────────────────────────
