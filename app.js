@@ -319,6 +319,10 @@ function resetTool(tool) {
     state.splitTotalPages = 0;
     const sIn = document.getElementById('split-range-input');
     if (sIn) sIn.value = '';
+    const grid = document.getElementById('split-thumbnails-grid');
+    if (grid) grid.innerHTML = '';
+    const sc = document.getElementById('sth-selected-count');
+    if (sc) sc.textContent = '0 ta sahifa tanlandi';
   }
   if (tool === 'img2pdf') {
     state.imgFiles = [];
@@ -1594,10 +1598,16 @@ document.getElementById('in-split').addEventListener('change', async function ()
       `${state.splitTotalPages} sahifa · ${fmtSize(file.size)} · PDF`;
 
     document.getElementById('split-range-input').value = `1-${Math.min(state.splitTotalPages, 3)}`;
+    renderSplitThumbnails(file, state.splitTotalPages);
   } catch (err) {
     console.error('[Split Load]', err);
     showError('split', 'PDF yuklashda xatolik: ' + err.message);
   }
+});
+
+// Rang o'zgarganda vizual prevyuni moslashtirish
+document.getElementById('split-range-input')?.addEventListener('input', () => {
+  syncThumbnailsWithRangeInput();
 });
 
 function setSplitPreset(preset) {
@@ -1618,6 +1628,121 @@ function setSplitPreset(preset) {
   } else if (preset === 'first3') {
     input.value = `1-${Math.min(total, 3)}`;
   }
+  syncThumbnailsWithRangeInput();
+}
+
+async function renderSplitThumbnails(file, totalPages) {
+  const grid = document.getElementById('split-thumbnails-grid');
+  if (!grid) return;
+  grid.innerHTML = '<div style="grid-column: 1/-1; padding: 18px; text-align: center; color: var(--text-2); font-size: 13px;">Sahifalar prevyusi yuklanmoqda... ⏳</div>';
+
+  try {
+    const arrBuf = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrBuf }).promise;
+    grid.innerHTML = '';
+
+    const maxRender = Math.min(totalPages, 60);
+    const selectedInitial = new Set([1, 2, 3].filter(p => p <= totalPages));
+
+    for (let pageNum = 1; pageNum <= maxRender; pageNum++) {
+      const page = await pdf.getPage(pageNum);
+      const viewport = page.getViewport({ scale: 0.28 });
+
+      const card = document.createElement('div');
+      card.className = `page-thumb-card ${selectedInitial.has(pageNum) ? 'selected' : ''}`;
+      card.dataset.page = pageNum;
+
+      const canvas = document.createElement('canvas');
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      const ctx = canvas.getContext('2d');
+
+      await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+
+      card.appendChild(canvas);
+
+      const check = document.createElement('div');
+      check.className = 'page-thumb-check';
+      check.innerHTML = '✓';
+      card.appendChild(check);
+
+      const num = document.createElement('div');
+      num.className = 'page-thumb-num';
+      num.textContent = pageNum;
+      card.appendChild(num);
+
+      card.addEventListener('click', () => {
+        card.classList.toggle('selected');
+        updateRangeInputFromThumbnails();
+      });
+
+      grid.appendChild(card);
+    }
+
+    if (totalPages > 60) {
+      const note = document.createElement('div');
+      note.style.cssText = 'grid-column: 1/-1; padding: 10px; font-size: 11px; color: var(--text-3); text-align: center;';
+      note.textContent = `(Dastlabki 60 ta sahifa ko'rsatildi, qolganlarini yuqoridagi maydonda qo'lda kiritishingiz mumkin)`;
+      grid.appendChild(note);
+    }
+
+    syncThumbnailsWithRangeInput();
+  } catch (err) {
+    console.error('[Thumbnails Render Error]', err);
+    grid.innerHTML = '';
+  }
+}
+
+function updateRangeInputFromThumbnails() {
+  const selectedCards = document.querySelectorAll('#split-thumbnails-grid .page-thumb-card.selected');
+  const pages = Array.from(selectedCards).map(c => parseInt(c.dataset.page, 10));
+  const rangeInput = document.getElementById('split-range-input');
+  if (rangeInput) {
+    rangeInput.value = formatPagesToRange(pages);
+  }
+  const countEl = document.getElementById('sth-selected-count');
+  if (countEl) {
+    countEl.textContent = `${pages.length} ta sahifa tanlandi`;
+  }
+}
+
+function syncThumbnailsWithRangeInput() {
+  const rangeInput = document.getElementById('split-range-input');
+  const val = rangeInput ? rangeInput.value : '';
+  const selectedPages = new Set(parsePageRanges(val, state.splitTotalPages));
+
+  document.querySelectorAll('#split-thumbnails-grid .page-thumb-card').forEach(card => {
+    const page = parseInt(card.dataset.page, 10);
+    if (selectedPages.has(page)) {
+      card.classList.add('selected');
+    } else {
+      card.classList.remove('selected');
+    }
+  });
+
+  const countEl = document.getElementById('sth-selected-count');
+  if (countEl) {
+    countEl.textContent = `${selectedPages.size} ta sahifa tanlandi`;
+  }
+}
+
+function formatPagesToRange(pages) {
+  if (!pages || !pages.length) return '';
+  const sorted = Array.from(new Set(pages)).sort((a, b) => a - b);
+  const ranges = [];
+  let start = sorted[0];
+  let end = sorted[0];
+
+  for (let i = 1; i < sorted.length; i++) {
+    if (sorted[i] === end + 1) {
+      end = sorted[i];
+    } else {
+      ranges.push(start === end ? `${start}` : `${start}-${end}`);
+      start = end = sorted[i];
+    }
+  }
+  ranges.push(start === end ? `${start}` : `${start}-${end}`);
+  return ranges.join(', ');
 }
 
 function parsePageRanges(rangeStr, maxPages) {
