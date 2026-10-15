@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="uz">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>DocConvert AI — Hujjatlar bo'yicha Sun'iy Intellekt Yordamchisi & Konvertor</title>
+  <meta name="description" content="PDF ↔ Word, Rasm → PDF, PDF Birlashtirish, Ajratish va Sun'iy Intellekt (AI) yordamida hujjatlarni tahlil qilish. 100% brauzerda, xavfsiz va bepul." />
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#4f8aff" />
+
+  <!-- OpenGraph / Social -->
+  <meta property="og:title" content="DocConvert AI — Hujjatlar bo'yicha Sun'iy Intellekt Yordamchisi" />
+  <meta property="og:description" content="PDF, Word va rasmlar bilan ishlash, konvertatsiya qilish hamda Sun'iy Intellekt yordamida tahlil qilish." />
+  <meta property="og:type" content="website" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+
+  <!-- Libraries -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+  <script src="https://unpkg.com/docx@8.5.0/build/index.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+</head>
+
+<body>
+
+  <!-- Particles background -->
+  <canvas id="particleCanvas"></canvas>
+
+  <!-- Glow orbs -->
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+  <div class="orb orb-3"></div>
+
+  <!-- ===== HEADER ===== -->
+  <header class="header">
+    <div class="hdr-inner">
+      <a class="brand" href="#">
+        <div class="brand-logo">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+            <line x1="16" y1="13" x2="8" y2="13" />
+            <line x1="16" y1="17" x2="8" y2="17" />
+          </svg>
+        </div>
+        <div>
+          <span class="brand-name">DocConvert <span class="ai-badge">AI</span></span>
+          <span class="brand-tag">Sun'iy Intellekt & Hujjatlar</span>
+        </div>
+      </a>
+      <div class="hdr-right">
+        <button class="btn-api-hdr" onclick="openAiSettings()" title="Gemini AI sozlamalari">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+          </svg>
+          <span id="ai-key-status-text">AI Kaliti</span>
+        </button>
+        <span class="status-pill">
+          <span class="status-dot"></span>
+          Offline · 100% Xavfsiz
+        </span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ===== HERO ===== -->
+  <section class="hero">
+    <div class="hero-inner">
+      <div class="hero-badge">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+        </svg>
+        100% Brauzerda · Ma'lumotlaringiz qurilmangizdan chiqmaydi
+      </div>
+      <h1 class="hero-h1">
+        Hujjatlar bilan ishlash va<br />
+        <span class="h1-grad">Sun'iy Intellekt</span> yordamchisi
+      </h1>
+      <p class="hero-p">
+        Hujjatlarni tahlil qiling, xulosasini oling, savol-javob qiling yoki PDF, Word va rasmlarni professional tarzda konvertatsiya qiling.
+      </p>
+      <div class="hero-chips">
+        <div class="chip chip-ai"><span>🤖</span>AI Hujjat Tahlili</div>
+        <div class="chip"><span>📄</span>PDF → Word</div>
+        <div class="chip"><span>📝</span>Word → PDF</div>
+        <div class="chip"><span>🖼️</span>Rasm → PDF</div>
+        <div class="chip"><span>📑</span>PDF Birlashtirish</div>
+        <div class="chip"><span>✂️</span>PDF Ajratish</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== CONVERTER APP ===== -->
+  <div class="app-shell">
+
+    <!-- Tab Navigation -->
+    <nav class="tabs" role="tablist">
+      <button class="tab active" data-panel="p-ai" role="tab" aria-selected="true">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 2a4 4 0 0 1 4 4v2a4 4 0 0 1-8 0V6a4 4 0 0 1 4-4z" />
+          <path d="M18 10a6 6 0 0 1-12 0" />
+          <line x1="12" y1="16" x2="12" y2="22" />
+          <line x1="8" y1="22" x2="16" y2="22" />
+        </svg>
+        <span class="tab-label">AI Yordamchi</span>
+      </button>
+      <button class="tab" data-panel="p-pdf2word" role="tab" aria-selected="false">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <polyline points="14 2 14 8 20 8" />
+        </svg>
+        <span class="tab-label">PDF → Word</span>
+      </button>
+      <button class="tab" data-panel="p-word2pdf" role="tab" aria-selected="false">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <polyline points="14 2 14 8 20 8" />
+          <line x1="16" y1="13" x2="8" y2="13" />
+          <line x1="16" y1="17" x2="8" y2="17" />
+        </svg>
+        <span class="tab-label">Word → PDF</span>
+      </button>
+      <button class="tab" data-panel="p-img2pdf" role="tab" aria-selected="false">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="18" height="18" rx="2" />
+          <circle cx="8.5" cy="8.5" r="1.5" />
+          <polyline points="21 15 16 10 5 21" />
+        </svg>
+        <span class="tab-label">Rasm → PDF</span>
+      </button>
+      <button class="tab" data-panel="p-merge" role="tab" aria-selected="false">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M17 1l4 4-4 4" />
+          <path d="M3 11V9a4 4 0 0 1 4-4h14" />
+          <path d="M7 23l-4-4 4-4" />
+          <path d="M21 13v2a4 4 0 0 1-4 4H3" />
+        </svg>
+        <span class="tab-label">Birlashtirish</span>
+      </button>
+      <button class="tab" data-panel="p-split" role="tab" aria-selected="false">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="6" cy="6" r="3"/>
+          <circle cx="6" cy="18" r="3"/>
+          <line x1="20" y1="4" x2="8.12" y2="15.88"/>
+          <line x1="14.47" y1="14.48" x2="20" y2="20"/>
+          <line x1="8.12" y1="8.12" x2="12" y2="12"/>
+        </svg>
+        <span class="tab-label">Ajratish</span>
+      </button>
+    </nav>
+
+    <!-- ============================= AI HUJJAT YORDAMCHISI ============================= -->
+    <div class="panel active" id="p-ai">
+      <div class="panel-top">
+        <div class="ptop-icon" style="background:linear-gradient(135deg,#7c3aed,#22d3ee)">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+            <path d="M12 2a4 4 0 0 1 4 4v2a4 4 0 0 1-8 0V6a4 4 0 0 1 4-4z" />
+            <path d="M18 10a6 6 0 0 1-12 0" />
+            <line x1="12" y1="16" x2="12" y2="22" />
+            <line x1="8" y1="22" x2="16" y2="22" />
+          </svg>
+        </div>
+        <div>
+          <h2 class="ptop-title">Sun'iy Intellekt (AI) Hujjat Yordamchisi</h2>
+          <p class="ptop-desc">PDF, Word yoki kiritilgan matnni tahlil qiling: tezkor xulosa, savol-javob, tahrirlash va tarjima</p>
+        </div>
+      </div>
+
+      <!-- Mode switcher: Fayl yuklash yoki Matn kiritish -->
+      <div class="ai-source-toggle">
+        <button type="button" class="ai-src-btn active" id="btn-src-file" onclick="setAiSource('file')">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          Hujjat yuklash (PDF / Word)
+        </button>
+        <button type="button" class="ai-src-btn" id="btn-src-text" onclick="setAiSource('text')">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="17" y1="10" x2="3" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="17" y1="18" x2="3" y2="18"/></svg>
+          Matnni to'g'ridan-to'g'ri kiritish
+        </button>
+      </div>
+
+      <!-- File Dropzone -->
+      <div id="ai-file-block">
+        <div class="dropzone" id="dz-ai" data-input="in-ai" tabindex="0">
+          <input type="file" id="in-ai" accept=".pdf,.docx,.doc,.txt" hidden />
+          <div class="dz-body">
+            <div class="dz-anim" style="background:rgba(124,58,237,.12); color:#a78bfa;">
+              <svg class="dz-svg" width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+                <line x1="12" y1="18" x2="12" y2="12" />
+                <line x1="9" y1="15" x2="15" y2="15" />
+              </svg>
+            </div>
+            <p class="dz-label">PDF yoki Word hujjatni shu yerga tashlang</p>
+            <p class="dz-hint">yoki <span class="dz-browse">faylni tanlash</span> uchun bosing</p>
+            <div class="dz-formats"><span>.PDF</span><span>.DOCX</span><span>.TXT</span></div>
+          </div>
+        </div>
+
+        <div class="file-selected hidden" id="fs-ai">
+          <div class="fs-card">
+            <div class="fs-icon">📄</div>
+            <div class="fs-info">
+              <span class="fs-name" id="fsn-ai"></span>
+              <span class="fs-meta" id="fsm-ai"></span>
+            </div>
+            <button class="fs-del" onclick="resetTool('ai')" title="Faylni o'chirish">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Text input block -->
+      <div id="ai-text-block" class="hidden">
+        <textarea id="ai-raw-text" class="ai-textarea" placeholder="Tahlil qilmoqchi bo'lgan matningizni shu yerga kiriting yoki nusxalab joylashtiring (kamida 15 ta so'z)..."></textarea>
+      </div>
+
+      <!-- Quick AI Actions toolbar -->
+      <div class="ai-actions-bar">
+        <button type="button" class="ai-act-btn active" onclick="runAiTask('summary')">
+          <span>📝</span> Qisqacha mazmun (Xulosa)
+        </button>
+        <button type="button" class="ai-act-btn" onclick="runAiTask('points')">
+          <span>🎯</span> Asosiy tezislar
+        </button>
+        <button type="button" class="ai-act-btn" onclick="runAiTask('polish')">
+          <span>✍️</span> Uslub & Imlo tahriri
+        </button>
+        <button type="button" class="ai-act-btn" onclick="runAiTask('translate_uz')">
+          <span>🇺🇿</span> O'zbekchaga
+        </button>
+        <button type="button" class="ai-act-btn" onclick="runAiTask('translate_ru')">
+          <span>🇷🇺</span> Ruschaga
+        </button>
+        <button type="button" class="ai-act-btn" onclick="runAiTask('translate_en')">
+          <span>🇬🇧</span> Inglizchaga
+        </button>
+      </div>
+
+      <!-- Ask Custom Question Input -->
+      <div class="ai-ask-box">
+        <input type="text" id="ai-user-query" class="ai-ask-input" placeholder="Hujjat bo'yicha maxsus savolingizni yozing (masalan: Asosiy shartlari nimadan iborat?)..." onkeydown="if(event.key==='Enter') runAiCustomQuery()" />
+        <button type="button" class="btn-ask" onclick="runAiCustomQuery()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          So'rash
+        </button>
+      </div>
+
+      <div class="progress-card hidden" id="pr-ai">
+        <div class="pc-top">
+          <span class="pc-label" id="prl-ai">Sun'iy intellekt tahlil qilmoqda...</span>
+          <span class="pc-pct" id="prp-ai">...</span>
+        </div>
+        <div class="pc-bar">
+          <div class="pc-fill" id="prf-ai" style="width:70%"></div>
+        </div>
+      </div>
+
+      <!-- AI Response Output Card -->
+      <div class="result-card hidden" id="rc-ai">
+        <div class="rc-header">
+          <div class="rc-badge success" id="ai-res-badge">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            <span id="ai-res-title">Tahlil natijasi</span>
+          </div>
+          <div class="rc-meta" id="rcm-ai"></div>
+        </div>
+        <div class="rc-preview">
+          <div class="rcp-label">Sun'iy Intellekt Tahlili:</div>
+          <div class="ai-output-text" id="ai-output-content"></div>
+        </div>
+        <div class="rc-actions">
+          <button class="btn-secondary" onclick="copyAiOutput()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            Nusxa olish
+          </button>
+          <button class="btn-dl" onclick="downloadAiOutputTxt()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Saqlash (.txt)
+          </button>
+          <button class="btn-again" onclick="resetTool('ai')">Yangi tahlil</button>
+        </div>
+      </div>
+
+      <div class="err-card hidden" id="er-ai">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+        </svg>
+        <span id="ert-ai"></span>
+        <button onclick="resetTool('ai')">Qayta urinish</button>
+      </div>
+    </div>
+
+    <!-- ============================= PDF → WORD ============================= -->
+    <div class="panel" id="p-pdf2word">
+      <div class="panel-top">
+        <div class="ptop-icon" style="background:linear-gradient(135deg,#ef4444,#f97316)">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+          </svg>
+        </div>
+        <div>
+          <h2 class="ptop-title">PDF → Word (.docx)</h2>
+          <p class="ptop-desc">PDF sahifalaridan matnni ajratib, formatlangan Word hujjatiga aylantiradi</p>
+        </div>
+      </div>
+
+      <div class="dropzone" id="dz-pdf2word" data-input="in-pdf2word" tabindex="0">
+        <input type="file" id="in-pdf2word" accept=".pdf" hidden />
+        <div class="dz-body">
+          <div class="dz-anim">
+            <svg class="dz-svg" width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="1.5">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="17 8 12 3 7 8" />
+              <line x1="12" y1="3" x2="12" y2="15" />
+            </svg>
+          </div>
+          <p class="dz-label">PDF faylni shu yerga tashlang</p>
+          <p class="dz-hint">yoki <span class="dz-browse">faylni tanlash</span> uchun bosing</p>
+          <div class="dz-formats"><span>.PDF</span></div>
+        </div>
+      </div>
+
+      <div class="file-selected hidden" id="fs-pdf2word">
+        <div class="fs-card">
+          <div class="fs-icon">📄</div>
+          <div class="fs-info">
+            <span class="fs-name" id="fsn-pdf2word"></span>
+            <span class="fs-meta" id="fsm-pdf2word"></span>
+          </div>
+          <button class="fs-del" onclick="resetTool('pdf2word')" title="Faylni o'chirish">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+        <button class="btn-convert" onclick="convertPdfToWord()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+          </svg>
+          Word (.docx) ga aylantirish
+        </button>
+      </div>
+
+      <div class="progress-card hidden" id="pr-pdf2word">
+        <div class="pc-top">
+
+          <span class="pc-label" id="prl-pdf2word">Tayyorlanmoqda...</span>
+          <span class="pc-pct" id="prp-pdf2word">0%</span>
+        </div>
+        <div class="pc-bar">
+          <div class="pc-fill" id="prf-pdf2word" style="width:0%"></div>
+        </div>
+        <div class="pc-pages" id="prpages-pdf2word"></div>
+      </div>
+
+      <div class="result-card hidden" id="rc-pdf2word">
+        <div class="rc-header">
+          <div class="rc-badge success">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+            Muvaffaqiyatli aylantirildi
+          </div>
+          <div class="rc-meta" id="rcm-pdf2word"></div>
+        </div>
+        <div class="rc-preview">
+          <div class="rcp-label">Matn ko'rinishi (dastlabki 60 satr):</div>
+          <div class="rcp-text" id="rct-pdf2word"></div>
+        </div>
+        <div class="rc-actions">
+          <button class="btn-dl" id="dl-pdf2word">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            .docx yuklab olish
+          </button>
+          <button class="btn-secondary" id="copy-pdf2word-btn" onclick="copyExtractedText('pdf2word')">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+            </svg>
+            <span id="copy-text-pdf2word">Matnni nusxalash</span>
+          </button>
+          <button class="btn-again" onclick="resetTool('pdf2word')">Boshqa fayl</button>
+        </div>
+      </div>
+
+      <div class="err-card hidden" id="er-pdf2word">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10" />
+          <line x1="12" y1="8" x2="12" y2="12" />
+          <line x1="12" y1="16" x2="12.01" y2="16" />
+        </svg>
+        <span id="ert-pdf2word"></span>
+        <button onclick="resetTool('pdf2word')">Qayta urinish</button>
+      </div>
+    </div>
+
+    <!-- ============================= WORD → PDF ============================= -->
+    <div class="panel" id="p-word2pdf">
+      <div class="panel-top">
+        <div class="ptop-icon" style="background:linear-gradient(135deg,#1d4ed8,#60a5fa)">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+            <line x1="16" y1="13" x2="8" y2="13" />
+            <line x1="16" y1="17" x2="8" y2="17" />
+          </svg>
+        </div>
+        <div>
+          <h2 class="ptop-title">Word → PDF</h2>
+          <p class="ptop-desc">.docx hujjatini ko'rsatib, brauzer orqali sifatli PDF sifatida saqlash imkoni</p>
+        </div>
+      </div>
+
+      <div class="dropzone" id="dz-word2pdf" data-input="in-word2pdf" tabindex="0">
+        <input type="file" id="in-word2pdf" accept=".docx,.doc" hidden />
+        <div class="dz-body">
+          <div class="dz-anim">
+            <svg class="dz-svg" width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="1.5">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="17 8 12 3 7 8" />
+              <line x1="12" y1="3" x2="12" y2="15" />
+            </svg>
+          </div>
+          <p class="dz-label">Word faylni shu yerga tashlang</p>
+          <p class="dz-hint">yoki <span class="dz-browse">faylni tanlash</span> uchun bosing</p>
+          <div class="dz-formats"><span>.DOCX</span></div>
+        </div>
+      </div>
+
+      <div class="file-selected hidden" id="fs-word2pdf">
+        <div class="fs-card">
+          <div class="fs-icon">📝</div>
+          <div class="fs-info">
+            <span class="fs-name" id="fsn-word2pdf"></span>
+            <span class="fs-meta" id="fsm-word2pdf"></span>
+          </div>
+          <button class="fs-del" onclick="resetTool('word2pdf')" title="Faylni o'chirish">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="progress-card hidden" id="pr-word2pdf">
+        <div class="pc-top">
+          <span class="pc-label" id="prl-word2pdf">Hujjat tayyorlanmoqda...</span>
+          <span class="pc-pct" id="prp-word2pdf">0%</span>
+        </div>
+        <div class="pc-bar">
+          <div class="pc-fill" id="prf-word2pdf" style="width:0%"></div>
+        </div>
+      </div>
+
+      <div class="result-card hidden" id="rc-word2pdf">
+        <div class="rc-header">
+          <div class="rc-badge info">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="18" height="18" rx="2" />
+              <line x1="3" y1="9" x2="21" y2="9" />
+            </svg>
+            Hujjat tayyor — ko'rib chiqing
+          </div>
+        </div>
+        <div class="word-preview-wrap">
+          <div class="word-preview" id="wp-word2pdf"></div>
+        </div>
+        <div class="rc-note">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+          Chop etish oynasida <strong>«Maqsad: PDF faylga saqlash»</strong> ni tanlang, so'ng
+          <strong>«Saqlash»</strong>ni bosing
+        </div>
+        <div class="rc-actions">
+          <button class="btn-dl" onclick="doPrint()">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="6 9 6 2 18 2 18 9" />
+              <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+              <rect x="6" y="14" width="12" height="8" />
+            </svg>
+            PDF sifatida chop etish
+          </button>
+          <button class="btn-secondary" onclick="copyExtractedText('word2pdf')">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+            </svg>
+            <span>Matnni nusxalash</span>
+          </button>
+          <button class="btn-again" onclick="resetTool('word2pdf')">Boshqa fayl</button>
+        </div>
+      </div>
+
+      <div class="err-card hidden" id="er-word2pdf">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10" />
+          <line x1="12" y1="8" x2="12" y2="12" />
+          <line x1="12" y1="16" x2="12.01" y2="16" />
+        </svg>
+        <span id="ert-word2pdf"></span>
+        <button onclick="resetTool('word2pdf')">Qayta urinish</button>
+      </div>
+    </div>
+
+    <!-- ============================= RASM → PDF ============================= -->
+    <div class="panel" id="p-img2pdf">
+      <div class="panel-top">
+        <div class="ptop-icon" style="background:linear-gradient(135deg,#059669,#34d399)">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+            <rect x="3" y="3" width="18" height="18" rx="2" />
+            <circle cx="8.5" cy="8.5" r="1.5" />
+            <polyline points="21 15 16 10 5 21" />
+          </svg>
+        </div>
+        <div>
+          <h2 class="ptop-title">Rasm → PDF</h2>
+          <p class="ptop-desc">JPG/PNG/WebP rasmlarni bitta PDF ga yig'adi — tartib va sozlamalarni moslang</p>
+        </div>
+      </div>
+
+      <div class="dropzone multi" id="dz-img2pdf" data-input="in-img2pdf" tabindex="0">
+        <input type="file" id="in-img2pdf" accept="image/jpeg,image/png,image/webp,image/gif" multiple hidden />
+        <div class="dz-body">
+          <div class="dz-anim">
+            <svg class="dz-svg" width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="1.5">
+              <rect x="3" y="3" width="18" height="18" rx="2" />
+              <circle cx="8.5" cy="8.5" r="1.5" />
+              <polyline points="21 15 16 10 5 21" />
+            </svg>
+          </div>
+          <p class="dz-label">Rasmlarni shu yerga tashlang yoki Ctrl+V bosing</p>
+          <p class="dz-hint">yoki <span class="dz-browse">rasmlarni tanlash</span> uchun bosing</p>
+          <div class="dz-formats"><span>.JPG</span><span>.PNG</span><span>.WebP</span><span>Ctrl+V</span></div>
+        </div>
+      </div>
+
+      <div class="multi-panel hidden" id="mp-img2pdf">
+        <!-- Image conversion options -->
+        <div class="opt-bar">
+          <div class="opt-group">
+            <label class="opt-label" for="opt-img-orient">Sahifa yo'nalishi:</label>
+            <select id="opt-img-orient" class="opt-select">
+              <option value="auto">Avtomatik (Har rasmga mos)</option>
+              <option value="portrait">A4 Portret (Tik)</option>
+              <option value="landscape">A4 Albom (Yotiq)</option>
+            </select>
+          </div>
+          <div class="opt-group">
+            <label class="opt-label" for="opt-img-margin">Hoshiya:</label>
+            <select id="opt-img-margin" class="opt-select">
+              <option value="0">Hoshiyasiz (To'liq sahifa)</option>
+              <option value="10" selected>Kichik hoshiya (10 mm)</option>
+              <option value="20">Standart hoshiya (20 mm)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="mp-header">
+          <span class="mp-count" id="mpc-img2pdf">0 ta rasm tanlandi</span>
+          <button class="mp-add" onclick="document.getElementById('in-img2pdf').click()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+            Qo'shish
+          </button>
+        </div>
+        <div class="img-grid" id="ig-img2pdf"></div>
+        <div class="mp-tip">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path
+              d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3" />
+          </svg>
+          <span>Tartibni o'zgartirish uchun <strong>◀ ▶</strong> tugmalarini bosing yoki rasmlarni sudrang</span>
+        </div>
+        <div class="mp-actions">
+          <button class="btn-clear" onclick="resetTool('img2pdf')">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="3 6 5 6 21 6" />
+              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+              <path d="M10 11v6M14 11v6" />
+              <path d="M9 6V4h6v2" />
+            </svg>
+            Tozalash
+          </button>
+          <button class="btn-convert" onclick="convertImgToPdf()">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+            </svg>
+            PDF yaratish
+          </button>
+        </div>
+      </div>
+
+      <div class="progress-card hidden" id="pr-img2pdf">
+        <div class="pc-top">
+          <span class="pc-label" id="prl-img2pdf">Rasmlar qayta ishlanmoqda...</span>
+          <span class="pc-pct" id="prp-img2pdf">0%</span>
+        </div>
+        <div class="pc-bar">
+          <div class="pc-fill" id="prf-img2pdf" style="width:0%"></div>
+        </div>
+      </div>
+
+      <div class="err-card hidden" id="er-img2pdf">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10" />
+          <line x1="12" y1="8" x2="12" y2="12" />
+          <line x1="12" y1="16" x2="12.01" y2="16" />
+        </svg>
+        <span id="ert-img2pdf"></span>
+        <button onclick="resetTool('img2pdf')">Qayta urinish</button>
+      </div>
+    </div>
+
+    <!-- ============================= PDF BIRLASHTIRISH ============================= -->
+    <div class="panel" id="p-merge">
+      <div class="panel-top">
+        <div class="ptop-icon" style="background:linear-gradient(135deg,#7c3aed,#a78bfa)">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+            <path d="M17 1l4 4-4 4" />
+            <path d="M3 11V9a4 4 0 0 1 4-4h14" />
+            <path d="M7 23l-4-4 4-4" />
+            <path d="M21 13v2a4 4 0 0 1-4 4H3" />
+          </svg>
+        </div>
+        <div>
+          <h2 class="ptop-title">PDF Birlashtirish</h2>
+          <p class="ptop-desc">Bir nechta PDF faylni tartibda bitta faylga birlashtiradi</p>
+        </div>
+      </div>
+
+      <div class="dropzone multi" id="dz-merge" data-input="in-merge" tabindex="0">
+        <input type="file" id="in-merge" accept=".pdf" multiple hidden />
+        <div class="dz-body">
+          <div class="dz-anim">
+            <svg class="dz-svg" width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="1.5">
+              <path d="M17 1l4 4-4 4" />
+              <path d="M3 11V9a4 4 0 0 1 4-4h14" />
+              <path d="M7 23l-4-4 4-4" />
+              <path d="M21 13v2a4 4 0 0 1-4 4H3" />
+            </svg>
+          </div>
+          <p class="dz-label">PDF fayllarni shu yerga tashlang</p>
+          <p class="dz-hint">yoki <span class="dz-browse">fayllarni tanlash</span> uchun bosing (kamida 2 ta)</p>
+          <div class="dz-formats"><span>.PDF × 2+</span></div>
+        </div>
+      </div>
+
+      <div class="multi-panel hidden" id="mp-merge">
+        <div class="mp-header">
+          <span class="mp-count" id="mpc-merge">0 ta fayl tanlandi</span>
+          <button class="mp-add" onclick="document.getElementById('in-merge').click()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+            PDF qo'shish
+          </button>
+        </div>
+        <div class="merge-list" id="ml-merge"></div>
+        <div class="mp-tip">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path
+              d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3" />
+          </svg>
+          <span>Tartibni o'zgartirish uchun <strong>▲ ▼</strong> tugmalarini bosing yoki sichqoncha bilan sudrang</span>
+        </div>
+        <div class="mp-actions">
+          <button class="btn-clear" onclick="resetTool('merge')">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="3 6 5 6 21 6" />
+              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+              <path d="M10 11v6M14 11v6" />
+              <path d="M9 6V4h6v2" />
+            </svg>
+            Tozalash
+          </button>
+          <button class="btn-convert" id="btn-merge" onclick="mergePdfs()" disabled>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+            </svg>
+            <span id="merge-btn-label">Birlashtirish (0)</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="progress-card hidden" id="pr-merge">
+        <div class="pc-top">
+          <span class="pc-label" id="prl-merge">PDF fayllar birlashtirilmoqda...</span>
+          <span class="pc-pct" id="prp-merge">0%</span>
+        </div>
+        <div class="pc-bar">
+          <div class="pc-fill" id="prf-merge" style="width:0%"></div>
+        </div>
+      </div>
+
+      <div class="err-card hidden" id="er-merge">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10" />
+          <line x1="12" y1="8" x2="12" y2="12" />
+          <line x1="12" y1="16" x2="12.01" y2="16" />
+        </svg>
+        <span id="ert-merge"></span>
+        <button onclick="resetTool('merge')">Qayta urinish</button>
+      </div>
+    </div>
+
+    <!-- ============================= PDF SAHIFALARGA AJRATISH (SPLIT) ============================= -->
+    <div class="panel" id="p-split">
+      <div class="panel-top">
+        <div class="ptop-icon" style="background:linear-gradient(135deg,#0284c7,#38bdf8)">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+            <circle cx="6" cy="6" r="3"/>
+            <circle cx="6" cy="18" r="3"/>
+            <line x1="20" y1="4" x2="8.12" y2="15.88"/>
+            <line x1="14.47" y1="14.48" x2="20" y2="20"/>
+            <line x1="8.12" y1="8.12" x2="12" y2="12"/>
+          </svg>
+        </div>
+        <div>
+          <h2 class="ptop-title">PDF Sahifalarini ajratish (Split PDF)</h2>
+          <p class="ptop-desc">PDF hujjatidan kerakli sahifalarni (masalan: 1-3, 5) ajratib, yangi PDF qilib oling</p>
+        </div>
+      </div>
+
+      <div class="dropzone" id="dz-split" data-input="in-split" tabindex="0">
+        <input type="file" id="in-split" accept=".pdf" hidden />
+        <div class="dz-body">
+          <div class="dz-anim">
+            <svg class="dz-svg" width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="9" y1="15" x2="15" y2="15"/>
+            </svg>
+          </div>
+          <p class="dz-label">PDF faylni shu yerga tashlang</p>
+          <p class="dz-hint">yoki <span class="dz-browse">faylni tanlash</span> uchun bosing</p>
+          <div class="dz-formats"><span>.PDF</span></div>
+        </div>
+      </div>
+
+      <div class="file-selected hidden" id="fs-split">
+        <div class="fs-card">
+          <div class="fs-icon">📄</div>
+          <div class="fs-info">
+            <span class="fs-name" id="fsn-split"></span>
+            <span class="fs-meta" id="fsm-split"></span>
+          </div>
+          <button class="fs-del" onclick="resetTool('split')" title="Faylni o'chirish">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+
+        <!-- Range Selection controls -->
+        <div class="split-controls">
+          <label class="split-label" for="split-range-input">
+            Ajratib olinadigan sahifalar oralig'i:
+          </label>
+          <div class="split-input-wrap">
+            <input type="text" id="split-range-input" class="split-input" placeholder="Masalan: 1-3, 5, 8" />
+            <div class="split-presets">
+              <button type="button" class="btn-preset" onclick="setSplitPreset('all')">Barchasi</button>
+              <button type="button" class="btn-preset" onclick="setSplitPreset('odd')">Toq sahifalar</button>
+              <button type="button" class="btn-preset" onclick="setSplitPreset('even')">Juft sahifalar</button>
+              <button type="button" class="btn-preset" onclick="setSplitPreset('first3')">Dastlabki 3 ta</button>
+            </div>
+          </div>
+          <p class="split-hint">Misol: <strong>1-4, 7, 9-12</strong> kabi sahifa raqamlarini kiriting</p>
+        </div>
+
+        <button class="btn-convert" onclick="executeSplitPdf()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/>
+            <line x1="20" y1="4" x2="8.12" y2="15.88"/>
+          </svg>
+          Tanlangan sahifalarni ajratib olish (PDF yuklash)
+        </button>
+      </div>
+
+      <div class="progress-card hidden" id="pr-split">
+        <div class="pc-top">
+          <span class="pc-label" id="prl-split">Sahifalar ajratilmoqda...</span>
+          <span class="pc-pct" id="prp-split">0%</span>
+        </div>
+        <div class="pc-bar"><div class="pc-fill" id="prf-split" style="width:0%"></div></div>
+      </div>
+
+      <div class="err-card hidden" id="er-split">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+        </svg>
+        <span id="ert-split"></span>
+        <button onclick="resetTool('split')">Qayta urinish</button>
+      </div>
+    </div>
+
+  </div><!-- /app-shell -->
+
+  <!-- Modal: AI Settings -->
+  <div class="modal-backdrop hidden" id="ai-modal" onclick="if(event.target===this) closeAiSettings()">
+    <div class="modal-card">
+      <div class="modal-hdr">
+        <div class="modal-title">
+          <span class="modal-sparkle">✨</span>
+          <span>Google Gemini AI Sozlamalari</span>
+        </div>
+        <button class="modal-close" onclick="closeAiSettings()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-desc">
+          AI Yordamchisi <strong>Google Gemini AI</strong> imkoniyatlaridan to'liq foydalanadi.
+          API kalitingiz 100% xavfsiz holda faqat shaxsiy brauzeringizda (localStorage) saqlanadi.
+        </p>
+        <div class="modal-field">
+          <label class="modal-lbl" for="input-gemini-key">Gemini API Kaliti:</label>
+          <input type="password" id="input-gemini-key" class="modal-input" placeholder="AIzaSy..." />
+        </div>
+        <div class="modal-tip">
+          💡 Bepul kalit olish: <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Google AI Studio (aistudio.google.com)</a> ga o'tib, 1 daqiqada bepul API kalit yaratishingiz mumkin.
+        </div>
+      </div>
+      <div class="modal-ftr">
+        <button type="button" class="btn-clear" onclick="clearAiKey()">Kalitni o'chirish</button>
+        <button type="button" class="btn-dl" onclick="saveAiKey()">Saqlash</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast container -->
+  <div id="toast-container"></div>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="footer-inner">
+      <div class="footer-brand">
+        <strong>DocConvert AI</strong> — 100% brauzerda ishlaydigan xavfsiz hujjat platformasi
+      </div>
+      <div class="footer-libs">
+        Google Gemini AI · PDF.js · pdf-lib · jsPDF · mammoth.js · docx.js · Vercel Ready
+      </div>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+
+</html>

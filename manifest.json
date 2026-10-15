@@ -1,0 +1,16 @@
+{
+  "name": "DocConvert & AI — Hujjatlar bo'yicha Sun'iy Intellekt Yordamchisi",
+  "short_name": "DocConvert AI",
+  "description": "PDF, Word va rasmlar bilan ishlash hamda sun'iy intellekt yordamida hujjatlarni tahlil qilish",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#05070f",
+  "theme_color": "#4f8aff",
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

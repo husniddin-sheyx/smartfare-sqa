@@ -1,0 +1,21 @@
+# Operating System Files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE & Editor files
+.vscode/
+.idea/
+*.suo
+*.user
+
+# Temporary and test files
+*.tmp
+*.log
+scratch/
+test_*.png
+desktop_preview.png
+mobile_preview.png
+
+# Vercel output
+.vercel
