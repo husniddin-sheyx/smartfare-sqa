@@ -4,6 +4,28 @@
 
 'use strict';
 
+// ─── Theme Switcher (Dark / Light) ──────────────────────────────────────────
+function initTheme() {
+  const saved = localStorage.getItem('docconvert_theme') || 'dark';
+  setTheme(saved);
+}
+
+function setTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  localStorage.setItem('docconvert_theme', theme);
+  const icon = document.getElementById('theme-icon');
+  if (icon) icon.textContent = theme === 'light' ? '🌙' : '☀️';
+}
+
+function toggleTheme() {
+  const current = document.documentElement.getAttribute('data-theme') || 'dark';
+  const next = current === 'light' ? 'dark' : 'light';
+  setTheme(next);
+  toast(next === 'light' ? '☀️ Kunduzgi rejim yoqildi' : '🌙 Tungi rejim yoqildi', 'info', 2000);
+}
+
+initTheme();
+
 // ─── PDF.js Worker ───────────────────────────────────────────────────────────
 if (typeof pdfjsLib !== 'undefined') {
   pdfjsLib.GlobalWorkerOptions.workerSrc =
