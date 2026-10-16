@@ -530,13 +530,21 @@
           <strong>«Saqlash»</strong>ni bosing
         </div>
         <div class="rc-actions">
-          <button class="btn-dl" onclick="doPrint()">
+          <button class="btn-dl" onclick="downloadWordPdfDirect()" title="Chop etish oynasisiz to'g'ridan-to'g'ri PDF faylni yuklab olish">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            PDF yuklab olish
+          </button>
+          <button class="btn-secondary" onclick="doPrint()" title="Brauzer orqali sifatli chop etish">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <polyline points="6 9 6 2 18 2 18 9" />
               <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
               <rect x="6" y="14" width="12" height="8" />
             </svg>
-            PDF sifatida chop etish
+            Chop etish (Print)
           </button>
           <button class="btn-secondary" onclick="copyExtractedText('word2pdf')">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -610,6 +618,15 @@
               <option value="0">Hoshiyasiz (To'liq sahifa)</option>
               <option value="10" selected>Kichik hoshiya (10 mm)</option>
               <option value="20">Standart hoshiya (20 mm)</option>
+            </select>
+          </div>
+          <div class="opt-group">
+            <label class="opt-label" for="opt-img-filter">Hujjat skaner filtri:</label>
+            <select id="opt-img-filter" class="opt-select" onchange="applyImageFilterPreview()">
+              <option value="original" selected>Asl ranglar (Rangli)</option>
+              <option value="bw">Hujjat skaneri (Oq-qora B/W)</option>
+              <option value="grayscale">Kulrang (Grayscale)</option>
+              <option value="contrast">Yuqori kontrast (Aniq matn)</option>
             </select>
           </div>
         </div>

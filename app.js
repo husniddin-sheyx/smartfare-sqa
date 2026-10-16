@@ -336,7 +336,7 @@ function resetTool(tool) {
   if (tool === 'pdf2word') state.p2wBlob = null;
 }
 
-function fileToDataURL(file) {
+function fileToDataURL(file, filter = 'original') {
   return new Promise((resolve, reject) => {
     const img = new Image();
     const url = URL.createObjectURL(file);
@@ -351,6 +351,35 @@ function fileToDataURL(file) {
         ctx.fillStyle = '#ffffff';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(img, 0, 0);
+
+        // Hujjat skaner filtrlari
+        if (filter && filter !== 'original') {
+          const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const d = imgData.data;
+
+          if (filter === 'grayscale') {
+            for (let i = 0; i < d.length; i += 4) {
+              const gray = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+              d[i] = d[i + 1] = d[i + 2] = gray;
+            }
+          } else if (filter === 'bw') {
+            for (let i = 0; i < d.length; i += 4) {
+              const gray = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+              const val = gray > 142 ? 255 : 0;
+              d[i] = d[i + 1] = d[i + 2] = val;
+            }
+          } else if (filter === 'contrast') {
+            const contrast = 70;
+            const factor = (259 * (contrast + 255)) / (255 * (259 - contrast));
+            for (let i = 0; i < d.length; i += 4) {
+              d[i]     = Math.min(255, Math.max(0, factor * (d[i] - 128) + 128));
+              d[i + 1] = Math.min(255, Math.max(0, factor * (d[i + 1] - 128) + 128));
+              d[i + 2] = Math.min(255, Math.max(0, factor * (d[i + 2] - 128) + 128));
+            }
+          }
+          ctx.putImageData(imgData, 0, 0);
+        }
+
         const dataUrl = canvas.toDataURL('image/jpeg', 0.94);
         resolve({
           dataUrl,
@@ -369,6 +398,19 @@ function fileToDataURL(file) {
       reject(new Error(`"${file.name}" rasmini yuklab bo'lmadi`));
     };
     img.src = url;
+  });
+}
+
+function applyImageFilterPreview() {
+  const filter = document.getElementById('opt-img-filter')?.value || 'original';
+  let css = 'none';
+  if (filter === 'bw') css = 'grayscale(1) contrast(2.4)';
+  else if (filter === 'grayscale') css = 'grayscale(1)';
+  else if (filter === 'contrast') css = 'contrast(1.5) brightness(1.05)';
+
+  document.querySelectorAll('#ig-img2pdf .img-thumb-card img').forEach(img => {
+    img.style.filter = css;
+    img.style.transition = 'filter 0.25s ease';
   });
 }
 
@@ -1053,19 +1095,55 @@ async function convertPdfToWord() {
         spacing: { before: 320, after: 120 },
       }));
 
+      // Matn satrlarini yaxlit xatboshilarga birlashtirish
+      const mergedParagraphs = [];
+      let currentPara = null;
+
       for (const line of block.lines) {
         const isHeading = line.size >= 16;
+        const isBullet = /^[•\-–—*]\s+|\d+\.\s+/.test(line.text);
+
+        if (isHeading || isBullet) {
+          if (currentPara) {
+            mergedParagraphs.push(currentPara);
+            currentPara = null;
+          }
+          mergedParagraphs.push({
+            text: line.text,
+            isHeading,
+            isBullet,
+            size: line.size
+          });
+        } else {
+          if (!currentPara) {
+            currentPara = { text: line.text, isHeading: false, isBullet: false, size: line.size };
+          } else {
+            if (currentPara.text.endsWith('-')) {
+              currentPara.text = currentPara.text.slice(0, -1) + line.text;
+            } else {
+              currentPara.text += ' ' + line.text;
+            }
+          }
+          if (/[.!?:]$/.test(line.text.trim())) {
+            mergedParagraphs.push(currentPara);
+            currentPara = null;
+          }
+        }
+      }
+      if (currentPara) mergedParagraphs.push(currentPara);
+
+      for (const p of mergedParagraphs) {
         children.push(new Paragraph({
           children: [new TextRun({
-            text: line.text,
-            bold: isHeading,
-            size: isHeading ? 28 : 22,
+            text: p.text,
+            bold: p.isHeading,
+            size: p.isHeading ? 28 : 22,
             font: 'Calibri',
-            color: isHeading ? '1E293B' : '334155',
+            color: p.isHeading ? '1E293B' : '334155',
           })],
-          heading:   isHeading ? HeadingLevel.HEADING_2 : undefined,
-          alignment: isHeading ? AlignmentType.LEFT : AlignmentType.JUSTIFIED,
-          spacing:   { before: isHeading ? 200 : 0, after: isHeading ? 100 : 80 },
+          heading:   p.isHeading ? HeadingLevel.HEADING_2 : undefined,
+          alignment: p.isHeading ? AlignmentType.LEFT : AlignmentType.JUSTIFIED,
+          spacing:   { before: p.isHeading ? 200 : (p.isBullet ? 60 : 0), after: p.isHeading ? 100 : 120 },
         }));
       }
     }
@@ -1224,6 +1302,50 @@ function doPrint() {
   }
 }
 
+async function downloadWordPdfDirect() {
+  const previewEl = document.getElementById('wp-word2pdf');
+  if (!previewEl || !state.wordHtml) {
+    toast('Yuklash uchun hujjat topilmadi', 'error');
+    return;
+  }
+
+  hide('er-word2pdf');
+  show('pr-word2pdf');
+  setProgress('word2pdf', 30, 'PDF fayl shakllantirilmoqda...');
+
+  try {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'pt',
+      format: 'a4'
+    });
+
+    const fileName = (document.getElementById('fsn-word2pdf')?.textContent || 'hujjat').replace(/\.docx?$/i, '');
+
+    await doc.html(previewEl, {
+      callback: function (pdf) {
+        setProgress('word2pdf', 100, '✓ Tayyor!');
+        pdf.save(`${fileName}_hujjat.pdf`);
+        setTimeout(() => {
+          hide('pr-word2pdf');
+          toast('PDF fayl yuklab olindi! 📄', 'success');
+        }, 500);
+      },
+      x: 36,
+      y: 36,
+      width: 523,
+      windowWidth: 800,
+      autoPaging: 'text'
+    });
+  } catch (err) {
+    console.warn('[Direct PDF fallback]', err);
+    hide('pr-word2pdf');
+    toast('Chop etish oynasi ochilmoqda...', 'info');
+    doPrint();
+  }
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 //   3.  RASM → PDF
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1272,6 +1394,7 @@ function renderImgGrid() {
     grid.appendChild(card);
   });
 
+  applyImageFilterPreview();
   enableImgDragSort();
 }
 
@@ -1320,6 +1443,7 @@ async function convertImgToPdf() {
     const { jsPDF } = window.jspdf;
     const orientSetting = document.getElementById('opt-img-orient')?.value || 'auto';
     const margin = parseInt(document.getElementById('opt-img-margin')?.value || '10', 10);
+    const filter = document.getElementById('opt-img-filter')?.value || 'original';
     let doc = null;
 
     for (let i = 0; i < state.imgFiles.length; i++) {
@@ -1327,7 +1451,7 @@ async function convertImgToPdf() {
       const pct  = 8 + ((i / state.imgFiles.length) * 84);
       setProgress('img2pdf', pct, `Rasm ${i + 1}/${state.imgFiles.length}: ${file.name}`);
 
-      const imgInfo = await fileToDataURL(file);
+      const imgInfo = await fileToDataURL(file, filter);
       const imgRatio = imgInfo.w / imgInfo.h;
 
       // Yo'nalishni aniqlash
