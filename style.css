@@ -1834,10 +1834,15 @@ body {
 @media (max-width: 640px) {
   .header { height: 56px; }
   .hdr-inner { padding: 0 14px; height: 56px; }
+  .hdr-right { gap: 6px; }
   .brand-logo { width: 36px; height: 36px; border-radius: 10px; }
   .brand-name { font-size: 15px; }
   .brand-tag { font-size: 10px; }
-  .status-pill { padding: 4px 10px; font-size: 11px; }
+  .status-pill { display: none; }
+  .btn-api-hdr span { display: none; }
+  .btn-api-hdr { padding: 8px 10px; border-radius: 50%; }
+  #btn-pwa-install span:last-child { display: none; }
+  #btn-pwa-install { padding: 8px 10px; border-radius: 50%; }
 
   .hero { padding: 90px 16px 36px; }
   .hero-badge { font-size: 11px; padding: 6px 14px; margin-bottom: 20px; }
@@ -1850,6 +1855,9 @@ body {
   .ptop-icon { width: 44px; height: 44px; border-radius: 12px; }
   .ptop-title { font-size: 18px; }
   .ptop-desc { font-size: 12px; }
+
+  .ai-stats-card { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .ai-stat-item { border-right: none; background: rgba(255,255,255,0.03); border-radius: var(--r-s); padding: 8px 6px; }
 
   .dropzone { padding: 32px 16px; border-radius: var(--r); margin-bottom: 16px; }
   .dz-anim { width: 68px; height: 68px; border-radius: 18px; margin-bottom: 14px; }
@@ -1871,6 +1879,8 @@ body {
   .ml-pages { font-size: 10px; padding: 2px 6px; }
   .ml-size { font-size: 10px; }
   .ml-order-btn { width: 26px; height: 20px; font-size: 10px; }
+
+  .split-thumbnails-grid { grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 8px; }
 
   .word-preview { padding: 24px 16px; font-size: 11pt; }
   .rc-actions { flex-direction: column; padding: 16px 14px; gap: 10px; }
