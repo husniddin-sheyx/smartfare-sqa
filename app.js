@@ -81,32 +81,40 @@ async function copyExtractedText(tool) {
   }
 }
 
-// ─── Particle Canvas ─────────────────────────────────────────────────────────
+// ─── Particle Canvas (Optimizatsiya qilingan: batareya va quvvat tejamkor) ────
 (function initParticles() {
   const canvas = document.getElementById('particleCanvas');
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
   let W, H, particles;
+  let isRunning = true;
+  let animId = null;
 
   function resize() {
     W = canvas.width  = window.innerWidth;
     H = canvas.height = window.innerHeight;
   }
 
+  function getParticleCount() {
+    return window.innerWidth < 768 ? 30 : 60;
+  }
+
   function createParticles(n) {
     return Array.from({ length: n }, () => ({
       x : Math.random() * W,
       y : Math.random() * H,
-      r : Math.random() * 1.5 + 0.3,
-      dx: (Math.random() - .5) * 0.35,
-      dy: (Math.random() - .5) * 0.35,
-      o : Math.random() * 0.5 + 0.15,
+      r : Math.random() * 1.3 + 0.3,
+      dx: (Math.random() - .5) * 0.28,
+      dy: (Math.random() - .5) * 0.28,
+      o : Math.random() * 0.4 + 0.15,
     }));
   }
 
   function draw() {
+    if (!isRunning) return;
     ctx.clearRect(0, 0, W, H);
-    particles.forEach(p => {
+    for (let i = 0; i < particles.length; i++) {
+      const p = particles[i];
       ctx.beginPath();
       ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
       ctx.fillStyle = `rgba(130,165,255,${p.o})`;
@@ -117,16 +125,30 @@ async function copyExtractedText(tool) {
       if (p.x > W) p.x = 0;
       if (p.y < 0) p.y = H;
       if (p.y > H) p.y = 0;
-    });
-    requestAnimationFrame(draw);
+    }
+    animId = requestAnimationFrame(draw);
   }
 
   resize();
-  particles = createParticles(120);
+  particles = createParticles(getParticleCount());
   draw();
+
+  // Tab fon holatiga o'tganda CPU sarfini 0 ga tushirish
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      isRunning = false;
+      if (animId) cancelAnimationFrame(animId);
+    } else {
+      if (!isRunning) {
+        isRunning = true;
+        draw();
+      }
+    }
+  });
+
   window.addEventListener('resize', () => {
     resize();
-    particles = createParticles(120);
+    particles = createParticles(getParticleCount());
   });
 })();
 
@@ -366,17 +388,32 @@ function fileToDataURL(file, filter = 'original') {
       URL.revokeObjectURL(url);
       try {
         const canvas = document.createElement('canvas');
-        canvas.width = img.naturalWidth || img.width;
-        canvas.height = img.naturalHeight || img.height;
+        let width = img.naturalWidth || img.width;
+        let height = img.naturalHeight || img.height;
+
+        // Aqlli o'lcham chegarasi (2200px - A4 chop etish uchun a'lo darajadagi sifat, lekin brauzerni qotishdan asraydi)
+        const MAX_DIM = 2200;
+        if (width > MAX_DIM || height > MAX_DIM) {
+          if (width > height) {
+            height = Math.round((height * MAX_DIM) / width);
+            width = MAX_DIM;
+          } else {
+            width = Math.round((width * MAX_DIM) / height);
+            height = MAX_DIM;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
         const ctx = canvas.getContext('2d');
         // Oq fon qo'yish (shaffof PNG/WebP rasmlar qora fon bo'lib qolmasligi uchun)
         ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(img, 0, 0);
+        ctx.fillRect(0, 0, width, height);
+        ctx.drawImage(img, 0, 0, width, height);
 
         // Hujjat skaner filtrlari
         if (filter && filter !== 'original') {
-          const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const imgData = ctx.getImageData(0, 0, width, height);
           const d = imgData.data;
 
           if (filter === 'grayscale') {
@@ -387,11 +424,11 @@ function fileToDataURL(file, filter = 'original') {
           } else if (filter === 'bw') {
             for (let i = 0; i < d.length; i += 4) {
               const gray = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
-              const val = gray > 142 ? 255 : 0;
+              const val = gray > 140 ? 255 : 0;
               d[i] = d[i + 1] = d[i + 2] = val;
             }
           } else if (filter === 'contrast') {
-            const contrast = 70;
+            const contrast = 65;
             const factor = (259 * (contrast + 255)) / (255 * (259 - contrast));
             for (let i = 0; i < d.length; i += 4) {
               d[i]     = Math.min(255, Math.max(0, factor * (d[i] - 128) + 128));
@@ -402,7 +439,7 @@ function fileToDataURL(file, filter = 'original') {
           ctx.putImageData(imgData, 0, 0);
         }
 
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.94);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
         resolve({
           dataUrl,
           w: canvas.width,
@@ -488,6 +525,11 @@ document.getElementById('in-ai').addEventListener('change', async function () {
         const pText = content.items.map(it => it.str).join(' ');
         pagesText.push(pText);
         setProgress('ai', 15 + Math.round((i / count) * 75), `Sahifa ${i}/${count} o'qilmoqda...`);
+
+        // Har 2 sahifada UI ga nafas berish
+        if (i % 2 === 0) {
+          await new Promise(r => setTimeout(r, 6));
+        }
       }
       text = pagesText.join('\n\n');
     } else if (ext === 'docx' || ext === 'doc') {
@@ -1078,6 +1120,11 @@ async function convertPdfToWord() {
       setProgress('pdf2word', pct,
         `Sahifa ${i}/${totalPages} qayta ishlanmoqda...`,
         `Jami ${totalPages} sahifa · Hozir: ${i}-sahifa`);
+
+      // Har 2 sahifada UI ga nafas berish (brauzer qotib qolmasligi va progress bar silliq ko'rinishi uchun)
+      if (i % 2 === 0) {
+        await new Promise(r => setTimeout(r, 6));
+      }
     }
 
     setProgress('pdf2word', 72, 'Word hujjat shakllantirilmoqda...');
@@ -1395,11 +1442,20 @@ function renderImgGrid() {
   const grid = document.getElementById('ig-img2pdf');
   const count = document.getElementById('mpc-img2pdf');
   if (!grid) return;
+
+  // Xotirani tozalash: eski blob URL larni bekor qilish
+  if (window._imgPreviewUrls && Array.isArray(window._imgPreviewUrls)) {
+    window._imgPreviewUrls.forEach(url => URL.revokeObjectURL(url));
+  }
+  window._imgPreviewUrls = [];
+
   grid.innerHTML = '';
   count.textContent = `${state.imgFiles.length} ta rasm tanlandi`;
 
   state.imgFiles.forEach((file, idx) => {
     const url  = URL.createObjectURL(file);
+    window._imgPreviewUrls.push(url);
+
     const card = document.createElement('div');
     card.className = 'img-thumb-card';
     card.dataset.idx = idx;
@@ -1472,6 +1528,9 @@ async function convertImgToPdf() {
       const file = state.imgFiles[i];
       const pct  = 8 + ((i / state.imgFiles.length) * 84);
       setProgress('img2pdf', pct, `Rasm ${i + 1}/${state.imgFiles.length}: ${file.name}`);
+
+      // Asinxron tanaffus: UI qotib qolmasligi va progress bar silliq harakatlanishi uchun
+      await new Promise(r => setTimeout(r, 12));
 
       const imgInfo = await fileToDataURL(file, filter);
       const imgRatio = imgInfo.w / imgInfo.h;
@@ -1697,6 +1756,9 @@ async function mergePdfs() {
       const pages   = await merged.copyPages(srcDoc, indices);
       pages.forEach(p => merged.addPage(p));
       totalPages += pages.length;
+
+      // Silliq progress bar va UI javobgarligi uchun
+      await new Promise(r => setTimeout(r, 10));
     }
 
     setProgress('merge', 94, 'Fayl saqlanmoqda...');
@@ -1790,9 +1852,15 @@ async function renderSplitThumbnails(file, totalPages) {
     const maxRender = Math.min(totalPages, 60);
     const selectedInitial = new Set([1, 2, 3].filter(p => p <= totalPages));
 
+    const currentFileToken = file.name + '_' + file.size;
+    window._lastSplitFileToken = currentFileToken;
+
     for (let pageNum = 1; pageNum <= maxRender; pageNum++) {
+      // Agar foydalanuvchi boshqa fayl tanlagan bo'lsa, eskisini to'xtatish
+      if (window._lastSplitFileToken !== currentFileToken) return;
+
       const page = await pdf.getPage(pageNum);
-      const viewport = page.getViewport({ scale: 0.28 });
+      const viewport = page.getViewport({ scale: 0.24 });
 
       const card = document.createElement('div');
       card.className = `page-thumb-card ${selectedInitial.has(pageNum) ? 'selected' : ''}`;
@@ -1823,6 +1891,11 @@ async function renderSplitThumbnails(file, totalPages) {
       });
 
       grid.appendChild(card);
+
+      // Har 2 ta sahifada brauzerga nafas berish (interfeys qotib qolmasligi uchun)
+      if (pageNum % 2 === 0) {
+        await new Promise(r => setTimeout(r, 6));
+      }
     }
 
     if (totalPages > 60) {
@@ -1965,6 +2038,79 @@ async function executeSplitPdf() {
   } catch (err) {
     console.error('[Split Error]', err);
     showError('split', 'Xato: ' + (err.message || 'Ajratishda muammo yuz berdi'));
+  }
+}
+
+async function executeSplitAllPages() {
+  if (!state.splitFile || !state.splitTotalPages) {
+    toast('Iltimos, avval PDF fayl yuklang!', 'error');
+    return;
+  }
+
+  const total = state.splitTotalPages;
+  if (total > 25) {
+    const ok = confirm(`Hujjatda ${total} ta sahifa bor. Har biri alohida fayl sifatida saqlanadi. Davom ettirasizmi?`);
+    if (!ok) return;
+  }
+
+  hide('er-split');
+  show('pr-split');
+  setProgress('split', 5, 'Sahifalar alohida ajratilmoqda...');
+
+  try {
+    const { PDFDocument } = PDFLib;
+    const ab = await state.splitFile.arrayBuffer();
+    const srcDoc = await PDFDocument.load(ab, { ignoreEncryption: true });
+    const baseName = state.splitFile.name.replace(/\.pdf$/i, '');
+
+    for (let i = 0; i < total; i++) {
+      const pageDoc = await PDFDocument.create();
+      const [copied] = await pageDoc.copyPages(srcDoc, [i]);
+      pageDoc.addPage(copied);
+
+      const pdfBytes = await pageDoc.save();
+      const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+      saveAs(blob, `${baseName}_sahifa_${i + 1}.pdf`);
+
+      const pct = Math.round(((i + 1) / total) * 92);
+      setProgress('split', pct, `${i + 1}/${total}-sahifa yuklandi...`);
+
+      // Brauzer bir vaqtning o'zida yuklashlarni bloklab qo'ymasligi va interfeys qotmasligi uchun kutiladi
+      await new Promise(r => setTimeout(r, 260));
+    }
+
+    setProgress('split', 100, '✓ Barcha sahifalar ajratildi!');
+    setTimeout(() => {
+      hide('pr-split');
+      toast(`Jami ${total} ta sahifa alohida PDF qilib yuklab olindi!`, 'success');
+    }, 600);
+  } catch (err) {
+    console.error('[Split All Error]', err);
+    showError('split', 'Xato: ' + (err.message || 'Ajratishda muammo yuz berdi'));
+  }
+}
+
+// ─── PWA O'rnatish (Install App) ─────────────────────────────────────────────
+let deferredPrompt = null;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  const btn = document.getElementById('btn-pwa-install');
+  if (btn) btn.classList.remove('hidden');
+});
+
+async function installPwaApp() {
+  if (deferredPrompt) {
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      toast('DocConvert muvaffaqiyatli o\'rnatildi! 🎉', 'success');
+    }
+    deferredPrompt = null;
+    const btn = document.getElementById('btn-pwa-install');
+    if (btn) btn.classList.add('hidden');
+  } else {
+    toast('Brauzeringiz menyusidan (⋮ yoki Share) "Ilovani o\'rnatish" ni tanlang', 'info', 4500);
   }
 }
 

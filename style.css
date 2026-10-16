@@ -63,9 +63,10 @@ body {
 .orb {
   position: fixed;
   border-radius: 50%;
-  filter: blur(100px);
+  filter: blur(70px);
   pointer-events: none;
   z-index: 0;
+  will-change: transform;
 }
 .orb-1 {
   width: 700px; height: 700px;
@@ -1976,7 +1977,68 @@ body {
 [data-theme="light"] .ai-stat-val {
   color: #6d28d9;
 }
+[data-theme="light"] .result-card {
+  background: #ffffff;
+  border-color: rgba(16, 219, 160, 0.4);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.06);
+}
+[data-theme="light"] .rc-header {
+  border-bottom-color: rgba(0, 0, 0, 0.08);
+}
+[data-theme="light"] .rcp-text,
+[data-theme="light"] .ai-output-text {
+  color: #1e293b;
+  background: #f8fafc;
+}
+[data-theme="light"] .rc-note {
+  background: rgba(79, 138, 255, 0.06);
+  border-bottom-color: rgba(0, 0, 0, 0.08);
+  color: #334155;
+}
+[data-theme="light"] .progress-card {
+  background: #ffffff;
+  border-color: rgba(79, 138, 255, 0.2);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+}
+[data-theme="light"] .pc-label {
+  color: #334155;
+}
+[data-theme="light"] .fs-card,
+[data-theme="light"] .ml-item {
+  background: #ffffff;
+  border-color: rgba(148, 163, 184, 0.35);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+}
+[data-theme="light"] .ml-name,
+[data-theme="light"] .fs-name {
+  color: #0f172a;
+}
+[data-theme="light"] .page-thumb-card {
+  background: #ffffff;
+  border-color: rgba(148, 163, 184, 0.35);
+}
+[data-theme="light"] .page-thumb-card.selected {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(79, 138, 255, 0.28);
+}
+[data-theme="light"] .ai-act-btn,
+[data-theme="light"] .split-preset-btn {
+  background: #ffffff;
+  color: #334155;
+  border-color: rgba(148, 163, 184, 0.4);
+}
+[data-theme="light"] .ai-act-btn:hover,
+[data-theme="light"] .split-preset-btn:hover {
+  background: rgba(79, 138, 255, 0.08);
+  color: var(--blue);
+}
+[data-theme="light"] .ai-act-btn.active {
+  background: var(--blue);
+  color: #ffffff;
+  border-color: var(--blue);
+}
 [data-theme="light"] .footer {
   border-top-color: rgba(0, 0, 0, 0.08);
   background: rgba(0, 0, 0, 0.02);
 }
+

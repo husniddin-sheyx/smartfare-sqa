@@ -60,6 +60,10 @@
         <button class="btn-theme-toggle" id="btn-theme-toggle" onclick="toggleTheme()" title="Kunduzgi / Tungi rejim">
           <span id="theme-icon">☀️</span>
         </button>
+        <button class="btn-api-hdr hidden" id="btn-pwa-install" onclick="installPwaApp()" title="DocConvert ilovasini kompyuter yoki telefonga o'rnatish">
+          <span>📲</span>
+          <span>O'rnatish</span>
+        </button>
         <button class="btn-api-hdr" onclick="openAiSettings()" title="Gemini AI sozlamalari">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
@@ -858,13 +862,18 @@
         </div>
         <div class="split-thumbnails-grid" id="split-thumbnails-grid"></div>
 
-        <button class="btn-convert" onclick="executeSplitPdf()">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/>
-            <line x1="20" y1="4" x2="8.12" y2="15.88"/>
-          </svg>
-          Tanlangan sahifalarni ajratib olish (PDF yuklash)
-        </button>
+        <div style="display:flex; flex-direction:column; gap:10px; margin-top:16px;">
+          <button class="btn-convert" onclick="executeSplitPdf()">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/>
+              <line x1="20" y1="4" x2="8.12" y2="15.88"/>
+            </svg>
+            Tanlangan sahifalarni ajratib olish (PDF yuklash)
+          </button>
+          <button type="button" class="btn-secondary" onclick="executeSplitAllPages()" style="justify-content:center; width:100%; min-height:44px;" title="Har bir sahifani alohida fayl qilib olish">
+            📑 Barcha sahifalarni bittalab ajratish (Alohida PDF-lar)
+          </button>
+        </div>
       </div>
 
       <div class="progress-card hidden" id="pr-split">
