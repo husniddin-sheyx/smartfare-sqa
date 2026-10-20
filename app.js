@@ -157,8 +157,16 @@ function initTheme() {
 function setTheme(theme) {
   document.documentElement.setAttribute('data-theme', theme);
   localStorage.setItem('docconvert_theme', theme);
-  const icon = document.getElementById('theme-icon');
-  if (icon) icon.textContent = theme === 'light' ? '🌙' : '☀️';
+  const svg = document.getElementById('theme-icon-svg');
+  if (svg) {
+    if (theme === 'light') {
+      // Oq rejimda oy ikonkasi
+      svg.innerHTML = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>';
+    } else {
+      // Qorong'i rejimda quyosh ikonkasi
+      svg.innerHTML = '<circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>';
+    }
+  }
 }
 
 function toggleTheme() {
@@ -978,7 +986,7 @@ function stopAiTts() {
   const icon = document.getElementById('tts-icon');
   const label = document.getElementById('tts-label');
   if (btn) btn.classList.remove('speaking');
-  if (icon) icon.textContent = '🔊';
+  if (icon) icon.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>';
   if (label) label.textContent = 'Ovozli eshitish';
 }
 
@@ -1013,7 +1021,7 @@ function toggleAiTts() {
     const icon = document.getElementById('tts-icon');
     const label = document.getElementById('tts-label');
     if (btn) btn.classList.add('speaking');
-    if (icon) icon.textContent = '⏹';
+    if (icon) icon.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>';
     if (label) label.textContent = 'To\'xtatish';
   };
 

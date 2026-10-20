@@ -2052,3 +2052,38 @@ body {
   background: rgba(0, 0, 0, 0.02);
 }
 
+/* ─── Vector Badges & Chip Icons ─── */
+.lang-flag-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(124, 58, 237, 0.22);
+  color: #c4b5fd;
+  border: 1px solid rgba(167, 139, 250, 0.35);
+  line-height: 1.1;
+  font-family: monospace;
+}
+[data-theme="light"] .lang-flag-badge {
+  background: rgba(79, 138, 255, 0.12);
+  color: var(--blue);
+  border-color: rgba(79, 138, 255, 0.3);
+}
+
+.hero-chips .chip svg {
+  color: var(--blue);
+  flex-shrink: 0;
+  transition: transform var(--t) var(--ease);
+}
+.hero-chips .chip:hover svg {
+  transform: scale(1.18);
+}
+.hero-chips .chip.chip-ai svg {
+  color: #a78bfa;
+}
+
+
