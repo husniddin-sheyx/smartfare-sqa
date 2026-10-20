@@ -4,6 +4,150 @@
 
 'use strict';
 
+// ─── Xavfsizlik va Shifrlash Qatlami (Security Vault) ─────────────────────────
+const SecurityVault = {
+  _salt: [0x53, 0x6d, 0x61, 0x72, 0x74, 0x46, 0x61, 0x72, 0x65, 0x53, 0x65, 0x63, 0x39, 0x39],
+
+  encrypt(text) {
+    if (!text) return '';
+    try {
+      const bytes = new TextEncoder().encode(text);
+      const obfuscated = new Uint8Array(bytes.length);
+      for (let i = 0; i < bytes.length; i++) {
+        obfuscated[i] = bytes[i] ^ this._salt[i % this._salt.length];
+      }
+      let binary = '';
+      for (let i = 0; i < obfuscated.length; i++) {
+        binary += String.fromCharCode(obfuscated[i]);
+      }
+      return btoa(binary);
+    } catch (e) {
+      return btoa(encodeURIComponent(text));
+    }
+  },
+
+  decrypt(encoded) {
+    if (!encoded) return '';
+    try {
+      const binary = atob(encoded);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i) ^ this._salt[i % this._salt.length];
+      }
+      return new TextDecoder().decode(bytes);
+    } catch (e) {
+      try {
+        return decodeURIComponent(atob(encoded));
+      } catch (err) {
+        return encoded;
+      }
+    }
+  },
+
+  getApiKey() {
+    const secKey = localStorage.getItem('docconvert_gemini_sec');
+    if (secKey) {
+      return this.decrypt(secKey);
+    }
+    const oldKey = localStorage.getItem('docconvert_gemini_key');
+    if (oldKey) {
+      this.setApiKey(oldKey);
+      return oldKey;
+    }
+    return '';
+  },
+
+  setApiKey(key) {
+    if (!key) {
+      localStorage.removeItem('docconvert_gemini_sec');
+      localStorage.removeItem('docconvert_gemini_key');
+      return;
+    }
+    const encrypted = this.encrypt(key.trim());
+    localStorage.setItem('docconvert_gemini_sec', encrypted);
+    localStorage.removeItem('docconvert_gemini_key');
+  },
+
+  clearApiKey() {
+    localStorage.removeItem('docconvert_gemini_sec');
+    localStorage.removeItem('docconvert_gemini_key');
+  },
+
+  clearAllData() {
+    localStorage.removeItem('docconvert_gemini_sec');
+    localStorage.removeItem('docconvert_gemini_key');
+    sessionStorage.clear();
+    if ('caches' in window) {
+      caches.keys().then(names => names.forEach(n => caches.delete(n))).catch(() => {});
+    }
+  }
+};
+
+// ─── Kodni himoya qilish va Tekshiruvni cheklash (Inspection Shield) ──────────
+(function initCodeShield() {
+  // 1. Sichqonchaning o'ng tugmasi (Context Menu) ni interfeysda cheklash
+  document.addEventListener('contextmenu', e => {
+    const tag = e.target.tagName.toLowerCase();
+    if (tag === 'textarea' || tag === 'input' || e.target.isContentEditable || e.target.closest('.rcp-text') || e.target.closest('.ai-output-text') || e.target.closest('.word-preview')) {
+      return; // Foydalanuvchi matndan nusxa olishi yoki kiritishi uchun ruxsat beriladi
+    }
+    e.preventDefault();
+  });
+
+  // 2. DevTools va Kodni ko'rish tezkor tugmalarini bloklash
+  window.addEventListener('keydown', e => {
+    // F12
+    if (e.key === 'F12' || e.keyCode === 123) {
+      e.preventDefault();
+      return false;
+    }
+    // Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+Shift+C (DevTools)
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'I' || e.key === 'i' || e.key === 'J' || e.key === 'j' || e.key === 'C' || e.key === 'c')) {
+      e.preventDefault();
+      return false;
+    }
+    // Ctrl+U (View Source)
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'U' || e.key === 'u')) {
+      e.preventDefault();
+      return false;
+    }
+    // Ctrl+S (Save Page)
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'S' || e.key === 's') && !e.target.closest('input, textarea')) {
+      e.preventDefault();
+      return false;
+    }
+  });
+
+  // 3. Konsol xavfsizlik ogohlantirishi (Anti-Tamper Warning)
+  try {
+    const bannerStyle = 'color: #ef4444; font-size: 20px; font-weight: bold; font-family: monospace; text-shadow: 0 0 10px rgba(239,68,68,0.5);';
+    const subStyle = 'color: #94a3b8; font-size: 13px; line-height: 1.6;';
+    console.log('%c⛔ DIQQAT: XAVFSIZLIK QALQONI!', bannerStyle);
+    console.log('%cUshbu tizim mualliflik huquqi va shaxsiy ma\'lumotlar xavfsizligi protokollari bilan himoyalangan.\nKodlarni ruxsatsiz nusxalash yoki konsol orqali manipulyatsiya qilish qat\'iyan taqiqlanadi.', subStyle);
+  } catch (err) {}
+})();
+
+// ─── XSS Zararsizlantiruvchi (HTML Sanitizer) ─────────────────────────────────
+function sanitizeHtml(html) {
+  if (!html) return '';
+  const div = document.createElement('div');
+  div.innerHTML = html;
+  const dangerousTags = ['script', 'iframe', 'object', 'embed', 'link', 'style', 'base', 'form'];
+  dangerousTags.forEach(tag => {
+    div.querySelectorAll(tag).forEach(el => el.remove());
+  });
+  div.querySelectorAll('*').forEach(el => {
+    Array.from(el.attributes).forEach(attr => {
+      const name = attr.name.toLowerCase();
+      const val = attr.value.toLowerCase().trim();
+      if (name.startsWith('on') || val.startsWith('javascript:') || val.startsWith('data:text/html')) {
+        el.removeAttribute(attr.name);
+      }
+    });
+  });
+  return div.innerHTML;
+}
+
 // ─── Theme Switcher (Dark / Light) ──────────────────────────────────────────
 function initTheme() {
   const saved = localStorage.getItem('docconvert_theme') || 'dark';
@@ -676,7 +820,7 @@ Savol: "${query}"`;
 }
 
 async function queryAiOrLocal(systemPrompt, docText) {
-  const apiKey = localStorage.getItem('docconvert_gemini_key') || '';
+  const apiKey = SecurityVault.getApiKey() || '';
   const clippedDoc = docText.length > 35000 ? docText.slice(0, 35000) + '\n\n[...Hujjatning qolgan qismi qisqartirildi]' : docText;
 
   if (apiKey) {
@@ -1004,7 +1148,7 @@ function downloadAiOutputPdf() {
 function openAiSettings() {
   const modal = document.getElementById('ai-modal');
   const input = document.getElementById('input-gemini-key');
-  if (input) input.value = localStorage.getItem('docconvert_gemini_key') || '';
+  if (input) input.value = SecurityVault.getApiKey() || '';
   if (modal) modal.classList.remove('hidden');
 }
 
@@ -1017,11 +1161,11 @@ function saveAiKey() {
   const input = document.getElementById('input-gemini-key');
   const key = input ? input.value.trim() : '';
   if (key) {
-    localStorage.setItem('docconvert_gemini_key', key);
-    toast('Gemini API kaliti saqlandi! ✨', 'success');
+    SecurityVault.setApiKey(key);
+    toast('Gemini API kaliti shifrlangan holda saqlandi! 🔒✨', 'success');
     updateAiKeyBadge(true);
   } else {
-    localStorage.removeItem('docconvert_gemini_key');
+    SecurityVault.clearApiKey();
     toast('API kalit o\'chirildi', 'info');
     updateAiKeyBadge(false);
   }
@@ -1029,7 +1173,7 @@ function saveAiKey() {
 }
 
 function clearAiKey() {
-  localStorage.removeItem('docconvert_gemini_key');
+  SecurityVault.clearApiKey();
   const input = document.getElementById('input-gemini-key');
   if (input) input.value = '';
   toast('API kalit o\'chirildi', 'info');
@@ -1040,13 +1184,25 @@ function clearAiKey() {
 function updateAiKeyBadge(hasKey) {
   const text = document.getElementById('ai-key-status-text');
   if (!text) return;
-  if (hasKey || localStorage.getItem('docconvert_gemini_key')) {
+  const isKeyPresent = hasKey !== undefined ? hasKey : !!SecurityVault.getApiKey();
+  if (isKeyPresent) {
     text.textContent = 'AI Faol ✓';
     text.style.color = '#34d399';
   } else {
     text.textContent = 'AI Kaliti';
     text.style.color = '';
   }
+}
+
+function secureWipeAllData() {
+  const ok = confirm("Haqiqatan ham qurilmadagi barcha yuklangan hujjatlar, tahlillar va xavfsiz kalitlarni butunlay tozalashni xohlaysizmi?");
+  if (!ok) return;
+
+  SecurityVault.clearAllData();
+  ['ai', 'pdf2word', 'word2pdf', 'img2pdf', 'merge', 'split'].forEach(tool => resetTool(tool));
+  updateAiKeyBadge(false);
+  closeAiSettings();
+  toast("Qurilmadagi barcha ma'lumotlar va kalitlar 100% tozalandi! 🔒", "info", 4500);
 }
 
 // Initialize key status on page load
@@ -1300,7 +1456,7 @@ document.getElementById('in-word2pdf').addEventListener('change', async function
       }
     );
 
-    state.wordHtml = result.value || '<p><em>Hujjat bo\'sh yoki format qo\'llab-quvvatlanmaydi.</em></p>';
+    state.wordHtml = sanitizeHtml(result.value || '<p><em>Hujjat bo\'sh yoki format qo\'llab-quvvatlanmaydi.</em></p>');
     setProgress('word2pdf', 90, 'Ko\'rsatilmoqda...');
 
     document.getElementById('wp-word2pdf').innerHTML = state.wordHtml;

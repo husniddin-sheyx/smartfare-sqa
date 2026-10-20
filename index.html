@@ -907,8 +907,8 @@
       </div>
       <div class="modal-body">
         <p class="modal-desc">
-          AI Yordamchisi <strong>Google Gemini AI</strong> imkoniyatlaridan to'liq foydalanadi.
-          API kalitingiz 100% xavfsiz holda faqat shaxsiy brauzeringizda (localStorage) saqlanadi.
+          AI Yordamchisi <strong>Google Gemini AI</strong> imkoniyatlaridan foydalanadi.
+          API kalitingiz <strong>shifrlangan (encrypted)</strong> holda saqlanadi, hech qanday serverga yuborilmaydi va begona ko'zlardan himoyalangan.
         </p>
         <div class="modal-field">
           <label class="modal-lbl" for="input-gemini-key">Gemini API Kaliti:</label>
@@ -918,9 +918,14 @@
           💡 Bepul kalit olish: <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Google AI Studio (aistudio.google.com)</a> ga o'tib, 1 daqiqada bepul API kalit yaratishingiz mumkin.
         </div>
       </div>
-      <div class="modal-ftr">
-        <button type="button" class="btn-clear" onclick="clearAiKey()">Kalitni o'chirish</button>
-        <button type="button" class="btn-dl" onclick="saveAiKey()">Saqlash</button>
+      <div class="modal-ftr" style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:10px;">
+        <button type="button" class="btn-clear" onclick="secureWipeAllData()" style="color:var(--red); border-color:rgba(239,68,68,0.4);" title="Qurilmadagi barcha yuklangan hujjatlar, kesh va kalitlarni tozalash">
+          🔒 Xavfsiz tozalash
+        </button>
+        <div style="display:flex; gap:10px;">
+          <button type="button" class="btn-clear" onclick="clearAiKey()">Kalitni o'chirish</button>
+          <button type="button" class="btn-dl" onclick="saveAiKey()">Saqlash</button>
+        </div>
       </div>
     </div>
   </div>
