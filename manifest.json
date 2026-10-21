@@ -1,7 +1,7 @@
 {
-  "name": "DocConvert & AI — Hujjatlar bo'yicha Sun'iy Intellekt Yordamchisi",
+  "name": "DocConvert AI — PDF to Word, Word to PDF & Hujjat Konvertori",
   "short_name": "DocConvert AI",
-  "description": "PDF, Word va rasmlar bilan ishlash hamda sun'iy intellekt yordamida hujjatlarni tahlil qilish",
+  "description": "PDF ni Wordga aylantirish, Word to PDF, rasm va hujjatlarni Sun'iy Intellekt yordamida bepul konvertatsiya qilish",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#05070f",
