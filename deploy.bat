@@ -19,12 +19,13 @@ if %ERRORLEVEL% NEQ 0 (
     git remote add origin %REPO_URL%
 )
 
-echo Yangilanishlar tekshirilmoqda...
-git add .
-git commit -m "update: automatic deploy sync" >nul 2>&1
+echo [1/3] Fayllar tekshirilmoqda...
+git add app.js index.html style.css sw.js deploy.bat push.bat README.md robots.txt sitemap.xml
+git commit -m "feat: complete document tools, full icon overhaul and pdf/word fixes"
 git branch -M main
 
-echo GitHub'ga yuklanmoqda...
+echo.
+echo [2/3] GitHub va Vercel ga yuborilmoqda...
 git push -u origin main
 
 if %ERRORLEVEL% EQU 0 (

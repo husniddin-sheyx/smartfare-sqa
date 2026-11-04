@@ -83,47 +83,11 @@ const SecurityVault = {
   }
 };
 
-// ─── Kodni himoya qilish va Tekshiruvni cheklash (Inspection Shield) ──────────
+// ─── Tizim Xavfsizlik Qalqoni (Security Vault & Shield) ──────────────────────
 (function initCodeShield() {
-  // 1. Sichqonchaning o'ng tugmasi (Context Menu) ni interfeysda cheklash
-  document.addEventListener('contextmenu', e => {
-    const tag = e.target.tagName.toLowerCase();
-    if (tag === 'textarea' || tag === 'input' || e.target.isContentEditable || e.target.closest('.rcp-text') || e.target.closest('.ai-output-text') || e.target.closest('.word-preview')) {
-      return; // Foydalanuvchi matndan nusxa olishi yoki kiritishi uchun ruxsat beriladi
-    }
-    e.preventDefault();
-  });
-
-  // 2. DevTools va Kodni ko'rish tezkor tugmalarini bloklash
-  window.addEventListener('keydown', e => {
-    // F12
-    if (e.key === 'F12' || e.keyCode === 123) {
-      e.preventDefault();
-      return false;
-    }
-    // Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+Shift+C (DevTools)
-    if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'I' || e.key === 'i' || e.key === 'J' || e.key === 'j' || e.key === 'C' || e.key === 'c')) {
-      e.preventDefault();
-      return false;
-    }
-    // Ctrl+U (View Source)
-    if ((e.ctrlKey || e.metaKey) && (e.key === 'U' || e.key === 'u')) {
-      e.preventDefault();
-      return false;
-    }
-    // Ctrl+S (Save Page)
-    if ((e.ctrlKey || e.metaKey) && (e.key === 'S' || e.key === 's') && !e.target.closest('input, textarea')) {
-      e.preventDefault();
-      return false;
-    }
-  });
-
-  // 3. Konsol xavfsizlik ogohlantirishi (Anti-Tamper Warning)
   try {
-    const bannerStyle = 'color: #ef4444; font-size: 20px; font-weight: bold; font-family: monospace; text-shadow: 0 0 10px rgba(239,68,68,0.5);';
-    const subStyle = 'color: #94a3b8; font-size: 13px; line-height: 1.6;';
-    console.log('%c⛔ DIQQAT: XAVFSIZLIK QALQONI!', bannerStyle);
-    console.log('%cUshbu tizim mualliflik huquqi va shaxsiy ma\'lumotlar xavfsizligi protokollari bilan himoyalangan.\nKodlarni ruxsatsiz nusxalash yoki konsol orqali manipulyatsiya qilish qat\'iyan taqiqlanadi.', subStyle);
+    const bannerStyle = 'color: #3b82f6; font-size: 16px; font-weight: bold; font-family: monospace;';
+    console.log('%cDocConvert AI — Hujjatlar bo\'yicha yordamchi tizim', bannerStyle);
   } catch (err) {}
 })();
 
@@ -689,10 +653,12 @@ document.getElementById('in-ai').addEventListener('change', async function () {
         }
       }
       text = pagesText.join('\n\n');
-    } else if (ext === 'docx' || ext === 'doc') {
+    } else if (ext === 'docx') {
       const arrBuf = await file.arrayBuffer();
       const res = await mammoth.extractRawText({ arrayBuffer: arrBuf });
       text = res.value || '';
+    } else if (ext === 'doc') {
+      throw new Error("Eski binar .doc (Word 97–2003) formati brauzerda qo'llab-quvvatlanmaydi. Iltimos, faylni zamonaviy .docx formatida saqlab yuklang.");
     } else {
       text = await file.text();
     }
@@ -736,7 +702,7 @@ async function runAiTask(taskType) {
 
   // Active button highlight
   document.querySelectorAll('.ai-act-btn').forEach(b => b.classList.remove('active'));
-  const activeBtn = event?.currentTarget || document.querySelector(`.ai-act-btn[onclick*="${taskType}"]`);
+  const activeBtn = (typeof window !== 'undefined' && window.event ? window.event.currentTarget : null) || document.querySelector(`.ai-act-btn[onclick*="${taskType}"]`);
   if (activeBtn) activeBtn.classList.add('active');
 
   hide('er-ai');
@@ -883,7 +849,7 @@ function generateSmartLocalSummary(prompt, docText) {
   const wordFreq = {};
   const stopWords = new Set(['va','ham','bilan','uchun','bu','shu','u','o\'sha','bir','har','to','esa','deb','kerak','bo\'lib','bo\'lgan','edi','emas','haqida','ko\'ra','bunday','faqat']);
   words.forEach(w => {
-    const clean = w.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const clean = w.toLowerCase().replace(/[^a-z0-9а-яёўқғҳ']/gi, '');
     if (clean.length > 2 && !stopWords.has(clean)) {
       wordFreq[clean] = (wordFreq[clean] || 0) + 1;
     }
@@ -891,7 +857,7 @@ function generateSmartLocalSummary(prompt, docText) {
 
   const scoredSentences = sentences.map(s => {
     const sWords = s.toLowerCase().split(/\s+/);
-    const score = sWords.reduce((acc, w) => acc + (wordFreq[w.replace(/[^a-z0-9]/g, '')] || 0), 0) / (sWords.length || 1);
+    const score = sWords.reduce((acc, w) => acc + (wordFreq[w.replace(/[^a-z0-9а-яёўқғҳ']/gi, '')] || 0), 0) / (sWords.length || 1);
     return { text: s.trim(), score };
   });
 
@@ -1109,15 +1075,45 @@ async function downloadAiOutputDocx() {
   }
 }
 
-function downloadAiOutputPdf() {
+async function downloadAiOutputPdf() {
   if (!state.aiLastOutput) {
     toast('Eksport uchun matn mavjud emas', 'error');
     return;
   }
+  const titleText = document.getElementById('ai-res-title')?.textContent || 'AI Hujjat Tahlili';
   try {
     const { jsPDF } = window.jspdf;
+
+    if (window.html2canvas) {
+      const reportDiv = document.createElement('div');
+      reportDiv.style.cssText = 'position:fixed; left:-9999px; top:0; width:680px; padding:36px; background:#ffffff; color:#0f172a; font-family:"Times New Roman", serif; font-size:12pt; line-height:1.7;';
+      reportDiv.innerHTML = `
+        <div style="border-bottom:2px solid #3b82f6; padding-bottom:12px; margin-bottom:20px;">
+          <h1 style="color:#1d4ed8; font-size:20pt; margin:0 0 6px;">${titleText}</h1>
+          <p style="color:#64748b; font-size:10pt; margin:0;">DocConvert AI Tahlili · Manba: ${state.aiDocName || 'Kiritilgan matn'} · Sana: ${new Date().toLocaleDateString('uz-UZ')}</p>
+        </div>
+        <div style="white-space:pre-wrap; font-size:11pt; color:#1e293b; text-align:justify;">${state.aiLastOutput}</div>
+      `;
+      document.body.appendChild(reportDiv);
+
+      const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
+      await doc.html(reportDiv, {
+        callback: function(pdf) {
+          if (reportDiv.parentNode) reportDiv.remove();
+          pdf.save(`${titleText.replace(/[^a-zA-Z0-9_\u0400-\u04FF]/g, '_')}.pdf`);
+          toast('PDF hisoboti yuklab olindi!', 'success');
+        },
+        x: 36,
+        y: 36,
+        width: 523,
+        windowWidth: 680,
+        autoPaging: 'text'
+      });
+      return;
+    }
+
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-    const titleText = document.getElementById('ai-res-title')?.textContent || 'AI Hujjat Tahlili';
+    const title = titleText;
 
     doc.setFillColor(79, 138, 255);
     doc.rect(0, 0, 210, 8, 'F');
@@ -1125,7 +1121,7 @@ function downloadAiOutputPdf() {
     doc.setFont('Helvetica', 'bold');
     doc.setFontSize(16);
     doc.setTextColor(30, 41, 59);
-    doc.text(titleText, 15, 20);
+    doc.text(title, 15, 20);
 
     doc.setFont('Helvetica', 'italic');
     doc.setFontSize(9);
@@ -1149,7 +1145,7 @@ function downloadAiOutputPdf() {
       y += 6;
     }
 
-    doc.save(`${titleText.replace(/[^a-zA-Z0-9_\u0400-\u04FF]/g, '_')}.pdf`);
+    doc.save(`${title.replace(/[^a-zA-Z0-9_\u0400-\u04FF]/g, '_')}.pdf`);
     toast('PDF hisoboti yuklab olindi!', 'success');
   } catch (err) {
     console.error('[PDF Export Error]', err);
@@ -1249,6 +1245,10 @@ async function convertPdfToWord() {
   setProgress('pdf2word', 3, 'PDF fayl yuklanmoqda...');
 
   try {
+    if (typeof docx === 'undefined') {
+      throw new Error("Word yaratuvchi modul (docx.js) yuklanmadi. Iltimos, internet aloqasini tekshiring yoki sahifani qayta yuklang (Ctrl+F5).");
+    }
+
     const arrBuf = await file.arrayBuffer();
     setProgress('pdf2word', 12, 'PDF tuzilmasi tahlil qilinmoqda...');
 
@@ -1266,21 +1266,27 @@ async function convertPdfToWord() {
       for (const item of content.items) {
         if (!('str' in item) || !item.str.trim()) continue;
         const y = Math.round(vp.height - item.transform[5]);
-        const key = Math.round(y / 3) * 3; // 3px tolerans
+        const key = Math.round(y / 4) * 4; // 4px tolerans
         if (!lineMap.has(key)) lineMap.set(key, []);
         lineMap.get(key).push({
           text: item.str,
           x   : item.transform[4],
           size: Math.round(Math.abs(item.transform[3])),
+          y   : y
         });
       }
 
       const sortedLines = [...lineMap.entries()]
         .sort((a, b) => a[0] - b[0])
-        .map(([, items]) => ({
-          text: items.sort((a, b) => a.x - b.x).map(it => it.text).join(' ').trim(),
-          size: items[0]?.size || 12,
-        }))
+        .map(([yKey, items]) => {
+          items.sort((a, b) => a.x - b.x);
+          const lineStr = items.map(it => it.text).join(' ').replace(/\s+/g, ' ').trim();
+          return {
+            text: lineStr,
+            size: items[0]?.size || 12,
+            y: yKey
+          };
+        })
         .filter(l => l.text);
 
       allBlocks.push({ page: i, lines: sortedLines });
@@ -1290,56 +1296,47 @@ async function convertPdfToWord() {
         `Sahifa ${i}/${totalPages} qayta ishlanmoqda...`,
         `Jami ${totalPages} sahifa · Hozir: ${i}-sahifa`);
 
-      // Har 2 sahifada UI ga nafas berish (brauzer qotib qolmasligi va progress bar silliq ko'rinishi uchun)
+      // Har 2 sahifada UI ga nafas berish (brauzer qotib qolmasligi uchun)
       if (i % 2 === 0) {
         await new Promise(r => setTimeout(r, 6));
       }
+    }
+
+    const totalExtractedLines = allBlocks.reduce((s, b) => s + b.lines.length, 0);
+    if (totalExtractedLines === 0) {
+      throw new Error("Ushbu PDF faylida matn topilmadi. Hujjat faqat rasm yoki skaner nusxasi bo'lishi mumkin. Skanerlangan fayllardan Word yaratish uchun OCR dasturlari talab etiladi.");
     }
 
     setProgress('pdf2word', 72, 'Word hujjat shakllantirilmoqda...');
 
     // ── docx.js orqali Word yaratish ──────────────────────────────────────
     const { Document, Packer, Paragraph, TextRun, HeadingLevel,
-            AlignmentType, PageBreak, BorderStyle } = docx;
+            AlignmentType, PageBreak } = docx;
 
     const children = [];
 
-    // Sarlavha
-    children.push(new Paragraph({
-      children: [new TextRun({
-        text: file.name.replace(/\.pdf$/i, ''),
-        bold: true, size: 40, color: '1E3A8A',
-        font: 'Calibri',
-      })],
-      spacing : { after: 200 },
-    }));
+    for (let bIdx = 0; bIdx < allBlocks.length; bIdx++) {
+      const block = allBlocks[bIdx];
 
-    children.push(new Paragraph({
-      children: [new TextRun({
-        text: `Manba: ${file.name}  |  Sahifalar: ${allBlocks.length}  |  DocConvert orqali`,
-        size: 18, color: '94A3B8', italics: true, font: 'Calibri',
-      })],
-      spacing: { after: 400 },
-      border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: 'E2E8F0' } },
-    }));
-
-    for (const block of allBlocks) {
-      // Sahifa ajratuvchisi
-      children.push(new Paragraph({
-        children: [new TextRun({
-          text: `── Sahifa ${block.page} ──`,
-          bold: true, size: 20, color: '3B82F6', font: 'Calibri',
-        })],
-        spacing: { before: 320, after: 120 },
-      }));
+      // Haqiqiy sahifa uzilishi (PageBreak) — faqat 2-sahifadan boshlab
+      if (bIdx > 0 && children.length > 0) {
+        children.push(new Paragraph({
+          children: [new PageBreak()],
+        }));
+      }
 
       // Matn satrlarini yaxlit xatboshilarga birlashtirish
       const mergedParagraphs = [];
       let currentPara = null;
 
-      for (const line of block.lines) {
-        const isHeading = line.size >= 16;
-        const isBullet = /^[•\-–—*]\s+|\d+\.\s+/.test(line.text);
+      for (let lIdx = 0; lIdx < block.lines.length; lIdx++) {
+        const line = block.lines[lIdx];
+        const nextLine = block.lines[lIdx + 1];
+
+        const isHeading = line.size >= 15 || (line.text.length < 80 && line.text.length > 3 && /^[A-ZА-ЯЎҚҒҲ0-9\s:–—.-]+$/.test(line.text));
+        const isBullet = /^[•\-–—*]\s+|\d+[\.)]\s+/.test(line.text);
+        const yDiff = nextLine ? (nextLine.y - line.y) : 999;
+        const isParagraphEnd = isHeading || isBullet || yDiff > (line.size * 1.8);
 
         if (isHeading || isBullet) {
           if (currentPara) {
@@ -1362,7 +1359,7 @@ async function convertPdfToWord() {
               currentPara.text += ' ' + line.text;
             }
           }
-          if (/[.!?:]$/.test(line.text.trim())) {
+          if (isParagraphEnd) {
             mergedParagraphs.push(currentPara);
             currentPara = null;
           }
@@ -1375,13 +1372,13 @@ async function convertPdfToWord() {
           children: [new TextRun({
             text: p.text,
             bold: p.isHeading,
-            size: p.isHeading ? 28 : 22,
-            font: 'Calibri',
-            color: p.isHeading ? '1E293B' : '334155',
+            size: p.isHeading ? 26 : 24, // 13pt yoki 12pt
+            font: 'Times New Roman',
+            color: p.isHeading ? '0F172A' : '1E293B',
           })],
           heading:   p.isHeading ? HeadingLevel.HEADING_2 : undefined,
-          alignment: p.isHeading ? AlignmentType.LEFT : AlignmentType.JUSTIFIED,
-          spacing:   { before: p.isHeading ? 200 : (p.isBullet ? 60 : 0), after: p.isHeading ? 100 : 120 },
+          alignment: p.isHeading ? AlignmentType.CENTER : AlignmentType.JUSTIFIED,
+          spacing:   { before: p.isHeading ? 240 : (p.isBullet ? 80 : 0), after: p.isHeading ? 120 : 120, line: 360 },
         }));
       }
     }
@@ -1389,7 +1386,7 @@ async function convertPdfToWord() {
     const doc = new Document({
       creator:     'DocConvert',
       title:       file.name.replace(/\.pdf$/i, ''),
-      description: 'DocConvert orqali PDF dan aylantirилgan',
+      description: 'DocConvert orqali PDF dan aylantirilgan',
       sections: [{
         properties: {
           page: { margin: { top: 1440, right: 1440, bottom: 1440, left: 1440 } },
@@ -1403,7 +1400,6 @@ async function convertPdfToWord() {
     setProgress('pdf2word', 100, '✓ Tayyor!');
 
     // Natija
-    const totalLines = allBlocks.reduce((s, b) => s + b.lines.length, 0);
     state.extractedText = allBlocks
       .flatMap(b => b.lines.map(l => l.text))
       .join('\n');
@@ -1447,6 +1443,12 @@ document.getElementById('in-word2pdf').addEventListener('change', async function
   document.getElementById('fsm-word2pdf').textContent = fmtSize(file.size) + ' · DOCX';
   show('fs-word2pdf');
   ['er-word2pdf','rc-word2pdf'].forEach(hide);
+
+  if (file.name.toLowerCase().endsWith('.doc')) {
+    showError('word2pdf', "Eski binar .doc (Word 97–2003) formati brauzerda qo'llab-quvvatlanmaydi. Iltimos, faylni Word dasturida ochib zamonaviy .docx formatida saqlang yoki .docx fayl yuklang.");
+    return;
+  }
+
   show('pr-word2pdf');
   setProgress('word2pdf', 10, 'Fayl o\'qilmoqda...');
 

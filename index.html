@@ -30,9 +30,15 @@
   <!-- Libraries -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
-  <script src="https://unpkg.com/docx@8.5.0/build/index.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js"></script>
+  <script>
+    if (typeof docx === 'undefined') {
+      document.write('<script src="https://unpkg.com/docx@8.5.0/build/index.umd.js"><\/script>');
+    }
+  </script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 </head>
 
@@ -381,10 +387,14 @@
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             PDF hisobot
           </button>
-          <button class="btn-secondary" onclick="downloadAiOutputTxt()" title="Oddiy matn formatida">
-            TXT
+          <button class="btn-secondary" onclick="downloadAiOutputTxt()" title="Oddiy matn formatida yuklab olish">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            TXT yuklash
           </button>
-          <button class="btn-again" onclick="resetTool('ai')">Yangi tahlil</button>
+          <button class="btn-again" onclick="resetTool('ai')">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+            Yangi tahlil
+          </button>
         </div>
       </div>
 
@@ -393,7 +403,10 @@
           <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
         </svg>
         <span id="ert-ai"></span>
-        <button onclick="resetTool('ai')">Qayta urinish</button>
+        <button onclick="resetTool('ai')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+          Qayta urinish
+        </button>
       </div>
     </div>
 
@@ -500,7 +513,10 @@
             </svg>
             <span id="copy-text-pdf2word">Matnni nusxalash</span>
           </button>
-          <button class="btn-again" onclick="resetTool('pdf2word')">Boshqa fayl</button>
+          <button class="btn-again" onclick="resetTool('pdf2word')">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+            Boshqa fayl
+          </button>
         </div>
       </div>
 
@@ -511,7 +527,10 @@
           <line x1="12" y1="16" x2="12.01" y2="16" />
         </svg>
         <span id="ert-pdf2word"></span>
-        <button onclick="resetTool('pdf2word')">Qayta urinish</button>
+        <button onclick="resetTool('pdf2word')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+          Qayta urinish
+        </button>
       </div>
     </div>
 
@@ -629,7 +648,10 @@
             </svg>
             <span>Matnni nusxalash</span>
           </button>
-          <button class="btn-again" onclick="resetTool('word2pdf')">Boshqa fayl</button>
+          <button class="btn-again" onclick="resetTool('word2pdf')">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+            Boshqa fayl
+          </button>
         </div>
       </div>
 
@@ -640,7 +662,10 @@
           <line x1="12" y1="16" x2="12.01" y2="16" />
         </svg>
         <span id="ert-word2pdf"></span>
-        <button onclick="resetTool('word2pdf')">Qayta urinish</button>
+        <button onclick="resetTool('word2pdf')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+          Qayta urinish
+        </button>
       </div>
     </div>
 
@@ -761,7 +786,10 @@
           <line x1="12" y1="16" x2="12.01" y2="16" />
         </svg>
         <span id="ert-img2pdf"></span>
-        <button onclick="resetTool('img2pdf')">Qayta urinish</button>
+        <button onclick="resetTool('img2pdf')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+          Qayta urinish
+        </button>
       </div>
     </div>
 
@@ -855,7 +883,10 @@
           <line x1="12" y1="16" x2="12.01" y2="16" />
         </svg>
         <span id="ert-merge"></span>
-        <button onclick="resetTool('merge')">Qayta urinish</button>
+        <button onclick="resetTool('merge')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+          Qayta urinish
+        </button>
       </div>
     </div>
 
@@ -923,10 +954,22 @@
           <div class="split-input-wrap">
             <input type="text" id="split-range-input" class="split-input" placeholder="Masalan: 1-3, 5, 8" />
             <div class="split-presets">
-              <button type="button" class="btn-preset" onclick="setSplitPreset('all')">Barchasi</button>
-              <button type="button" class="btn-preset" onclick="setSplitPreset('odd')">Toq sahifalar</button>
-              <button type="button" class="btn-preset" onclick="setSplitPreset('even')">Juft sahifalar</button>
-              <button type="button" class="btn-preset" onclick="setSplitPreset('first3')">Dastlabki 3 ta</button>
+              <button type="button" class="btn-preset" onclick="setSplitPreset('all')">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2"/><polyline points="9 11 12 14 22 4"/></svg>
+                Barchasi
+              </button>
+              <button type="button" class="btn-preset" onclick="setSplitPreset('odd')">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v8"/></svg>
+                Toq sahifalar
+              </button>
+              <button type="button" class="btn-preset" onclick="setSplitPreset('even')">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/></svg>
+                Juft sahifalar
+              </button>
+              <button type="button" class="btn-preset" onclick="setSplitPreset('first3')">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+                Dastlabki 3 ta
+              </button>
             </div>
           </div>
           <p class="split-hint">Misol: <strong>1-4, 7, 9-12</strong> kabi sahifa raqamlarini kiriting</p>
@@ -970,7 +1013,10 @@
           <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
         </svg>
         <span id="ert-split"></span>
-        <button onclick="resetTool('split')">Qayta urinish</button>
+        <button onclick="resetTool('split')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+          Qayta urinish
+        </button>
       </div>
     </div>
 
@@ -1021,8 +1067,14 @@
           Xavfsiz tozalash
         </button>
         <div style="display:flex; gap:10px;">
-          <button type="button" class="btn-clear" onclick="clearAiKey()">Kalitni o'chirish</button>
-          <button type="button" class="btn-dl" onclick="saveAiKey()">Saqlash</button>
+          <button type="button" class="btn-clear" onclick="clearAiKey()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+            Kalitni o'chirish
+          </button>
+          <button type="button" class="btn-dl" onclick="saveAiKey()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            Saqlash
+          </button>
         </div>
       </div>
     </div>
