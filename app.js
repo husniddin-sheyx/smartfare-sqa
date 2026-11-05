@@ -680,9 +680,15 @@ document.getElementById('in-ai').addEventListener('change', async function () {
   }
 });
 
-// Matn kiritilganda statistikani yangilash
+// Matn kiritilganda statistikani yangilash va Ctrl+Enter orqali tahlil qilish
 document.getElementById('ai-raw-text')?.addEventListener('input', function () {
   updateAiStats(this.value);
+});
+document.getElementById('ai-raw-text')?.addEventListener('keydown', function (e) {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+    e.preventDefault();
+    runAiTask('summary');
+  }
 });
 
 function getActiveAiText() {
@@ -1165,6 +1171,10 @@ function closeAiSettings() {
   const modal = document.getElementById('ai-modal');
   if (modal) modal.classList.add('hidden');
 }
+
+window.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeAiSettings();
+});
 
 function saveAiKey() {
   const input = document.getElementById('input-gemini-key');
