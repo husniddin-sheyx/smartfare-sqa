@@ -832,6 +832,11 @@ async function queryAiOrLocal(systemPrompt, docText) {
   const apiKey = SecurityVault.getApiKey() || '';
   const clippedDoc = docText.length > 35000 ? docText.slice(0, 35000) + '\n\n[...Hujjatning qolgan qismi qisqartirildi]' : docText;
 
+  if (!navigator.onLine) {
+    toast('Internet aloqasi yo\'q. Avtonom lokal tahlil ko\'rsatilmoqda 📴', 'info', 3500);
+    return generateSmartLocalSummary(systemPrompt, clippedDoc);
+  }
+
   if (apiKey) {
     try {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
