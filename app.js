@@ -498,7 +498,12 @@ function resetTool(tool) {
     renderMergeList();
   }
   if (tool === 'word2pdf') state.wordHtml = '';
-  if (tool === 'pdf2word') state.p2wBlob = null;
+  if (tool === 'pdf2word') {
+    state.p2wBlob = null;
+    state.extractedText = '';
+    const wp = document.getElementById('wp-pdf2word');
+    if (wp) wp.innerHTML = '';
+  }
 }
 
 function fileToDataURL(file, filter = 'original') {
@@ -643,8 +648,27 @@ document.getElementById('in-ai').addEventListener('change', async function () {
       for (let i = 1; i <= count; i++) {
         const page = await pdf.getPage(i);
         const content = await page.getTextContent({ normalizeWhitespace: true });
-        const pText = content.items.map(it => it.str).join(' ');
-        pagesText.push(pText);
+        let pText = '';
+        let lastItemX = 0;
+        let lastItemW = 0;
+        let lastItemY = null;
+        for (const it of content.items) {
+          if (!it.str) continue;
+          const itY = Math.round(it.transform[5]);
+          const itX = it.transform[4];
+          const itW = it.width || 0;
+          if (lastItemY !== null && Math.abs(itY - lastItemY) > 5) {
+            pText += '\n';
+          } else if (lastItemY !== null) {
+            const gap = itX - (lastItemX + lastItemW);
+            if (gap > 3) pText += ' ';
+          }
+          pText += it.str;
+          lastItemX = itX;
+          lastItemW = itW;
+          lastItemY = itY;
+        }
+        pagesText.push(pText.trim());
         setProgress('ai', 15 + Math.round((i / count) * 75), `Sahifa ${i}/${count} o'qilmoqda...`);
 
         // Har 2 sahifada UI ga nafas berish
@@ -1252,7 +1276,7 @@ async function convertPdfToWord() {
   hide('er-pdf2word');
   hide('rc-pdf2word');
   show('pr-pdf2word');
-  setProgress('pdf2word', 3, 'PDF fayl yuklanmoqda...');
+  setProgress('pdf2word', 5, 'PDF fayl yuklanmoqda...');
 
   try {
     if (typeof docx === 'undefined') {
@@ -1260,183 +1284,454 @@ async function convertPdfToWord() {
     }
 
     const arrBuf = await file.arrayBuffer();
-    setProgress('pdf2word', 12, 'PDF tuzilmasi tahlil qilinmoqda...');
+    setProgress('pdf2word', 12, 'PDF tuzilmasi va sahifalar tahlil qilinmoqda...');
 
-    const pdf        = await pdfjsLib.getDocument({ data: arrBuf }).promise;
+    const pdf = await pdfjsLib.getDocument({ data: arrBuf }).promise;
     const totalPages = pdf.numPages;
-    const allBlocks  = [];
 
-    for (let i = 1; i <= totalPages; i++) {
-      const page    = await pdf.getPage(i);
+    const {
+      Document, Packer, Paragraph, TextRun, HeadingLevel,
+      AlignmentType, PageBreak, Table, TableRow, TableCell,
+      WidthType, ImageRun
+    } = docx;
+
+    const docxChildren = [];
+    const previewPagesHtml = [];
+    let fullExtractedText = '';
+
+    for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
+      const page = await pdf.getPage(pageNum);
+      const vp = page.getViewport({ scale: 1.0 });
       const content = await page.getTextContent({ normalizeWhitespace: true });
-      const vp      = page.getViewport({ scale: 1 });
 
-      // Satrlarga guruhlash (Y koordinatasi asosida)
+      // Sahifalar orasida uzilish (PageBreak)
+      if (pageNum > 1 && docxChildren.length > 0) {
+        docxChildren.push(new Paragraph({
+          children: [new PageBreak()]
+        }));
+      }
+
+      // Agar sahifada matn deyarli yo'q bo'lsa (skanerlangan yoki rasm bo'lsa)
+      const validItems = content.items.filter(it => it.str && it.str.trim());
+      if (validItems.length === 0) {
+        setProgress('pdf2word', 15 + Math.round((pageNum / totalPages) * 60),
+          `Sahifa ${pageNum}/${totalPages} (skaner nusxasi) qayta ishlanmoqda...`);
+
+        try {
+          const renderVp = page.getViewport({ scale: 1.5 });
+          const canvas = document.createElement('canvas');
+          canvas.width = renderVp.width;
+          canvas.height = renderVp.height;
+          const ctx = canvas.getContext('2d');
+          await page.render({ canvasContext: ctx, viewport: renderVp }).promise;
+
+          const dataUrl = canvas.toDataURL('image/png');
+          const base64Data = dataUrl.split(',')[1];
+          const binaryStr = atob(base64Data);
+          const imgBytes = new Uint8Array(binaryStr.length);
+          for (let k = 0; k < binaryStr.length; k++) {
+            imgBytes[k] = binaryStr.charCodeAt(k);
+          }
+
+          docxChildren.push(new Paragraph({
+            children: [
+              new ImageRun({
+                data: imgBytes,
+                transformation: {
+                  width: 540,
+                  height: Math.round(540 * (renderVp.height / renderVp.width))
+                }
+              })
+            ],
+            alignment: AlignmentType.CENTER,
+            spacing: { after: 200 }
+          }));
+
+          previewPagesHtml.push(`
+            <div class="pdf-word-page" style="text-align:center; margin-bottom:24px;">
+              <div style="font-size:11px; color:#64748b; margin-bottom:8px;">— Sahifa ${pageNum} (Skanerlangan hujjat nusxasi) —</div>
+              <img src="${dataUrl}" style="max-width:100%; border:1px solid #cbd5e1; box-shadow:0 3px 12px rgba(0,0,0,0.08); border-radius:4px;" alt="Sahifa ${pageNum}"/>
+            </div>
+          `);
+        } catch (imgErr) {
+          console.warn('[Page Image Render]', imgErr);
+        }
+        continue;
+      }
+
+      // ─── Matnli sahifani tahlil qilish ───
+      // 1. Satrlarga guruhlash (Y koordinatasi bo'yicha)
       const lineMap = new Map();
       for (const item of content.items) {
-        if (!('str' in item) || !item.str.trim()) continue;
+        if (!('str' in item) || item.str === '') continue;
         const y = Math.round(vp.height - item.transform[5]);
-        const key = Math.round(y / 4) * 4; // 4px tolerans
-        if (!lineMap.has(key)) lineMap.set(key, []);
-        lineMap.get(key).push({
-          text: item.str,
-          x   : item.transform[4],
-          size: Math.round(Math.abs(item.transform[3])),
-          y   : y
+        const yKey = Math.round(y / 3.5) * 3.5; // 3.5pt tolerans
+
+        if (!lineMap.has(yKey)) lineMap.set(yKey, []);
+        const fontName = (item.fontName || '').toLowerCase();
+        const isBold = /bold|black|heavy|w[7-9]00|medium/i.test(fontName) || (item.weight && item.weight >= 700);
+        const isItalic = /italic|oblique/i.test(fontName);
+        const fontSize = Math.max(8, Math.round(Math.abs(item.transform[0] || item.transform[3] || 12)));
+        const isSerif = /times|serif|cambria|georgia|minion/i.test(fontName);
+
+        lineMap.get(yKey).push({
+          str: item.str,
+          x: item.transform[4],
+          width: item.width || (item.str.length * fontSize * 0.52),
+          y: y,
+          size: fontSize,
+          isBold,
+          isItalic,
+          fontFamily: isSerif ? 'Times New Roman' : 'Calibri'
         });
       }
 
-      const sortedLines = [...lineMap.entries()]
-        .sort((a, b) => a[0] - b[0])
-        .map(([yKey, items]) => {
-          items.sort((a, b) => a.x - b.x);
-          const lineStr = items.map(it => it.text).join(' ').replace(/\s+/g, ' ').trim();
-          return {
-            text: lineStr,
-            size: items[0]?.size || 12,
-            y: yKey
-          };
-        })
-        .filter(l => l.text);
+      // Satrlarni yuqoridan pastga saralash
+      const sortedLineKeys = [...lineMap.keys()].sort((a, b) => a - b);
+      const lines = [];
 
-      allBlocks.push({ page: i, lines: sortedLines });
+      for (const yKey of sortedLineKeys) {
+        const rawItems = lineMap.get(yKey);
+        rawItems.sort((a, b) => a.x - b.x);
 
-      const pct = 12 + ((i / totalPages) * 55);
-      setProgress('pdf2word', pct,
-        `Sahifa ${i}/${totalPages} qayta ishlanmoqda...`,
-        `Jami ${totalPages} sahifa · Hozir: ${i}-sahifa`);
+        // Satr ichidagi so'zlarni va oraliqlarni to'g'ri birlashtirish
+        const runs = [];
+        let currRun = null;
+        let lastX = 0;
+        let lastWidth = 0;
+        let forceSpaceNext = false;
 
-      // Har 2 sahifada UI ga nafas berish (brauzer qotib qolmasligi uchun)
-      if (i % 2 === 0) {
-        await new Promise(r => setTimeout(r, 6));
-      }
-    }
+        for (let idx = 0; idx < rawItems.length; idx++) {
+          const it = rawItems[idx];
+          if (!it.str) continue;
 
-    const totalExtractedLines = allBlocks.reduce((s, b) => s + b.lines.length, 0);
-    if (totalExtractedLines === 0) {
-      throw new Error("Ushbu PDF faylida matn topilmadi. Hujjat faqat rasm yoki skaner nusxasi bo'lishi mumkin. Skanerlangan fayllardan Word yaratish uchun OCR dasturlari talab etiladi.");
-    }
-
-    setProgress('pdf2word', 72, 'Word hujjat shakllantirilmoqda...');
-
-    // ── docx.js orqali Word yaratish ──────────────────────────────────────
-    const { Document, Packer, Paragraph, TextRun, HeadingLevel,
-            AlignmentType, PageBreak } = docx;
-
-    const children = [];
-
-    for (let bIdx = 0; bIdx < allBlocks.length; bIdx++) {
-      const block = allBlocks[bIdx];
-
-      // Haqiqiy sahifa uzilishi (PageBreak) — faqat 2-sahifadan boshlab
-      if (bIdx > 0 && children.length > 0) {
-        children.push(new Paragraph({
-          children: [new PageBreak()],
-        }));
-      }
-
-      // Matn satrlarini yaxlit xatboshilarga birlashtirish
-      const mergedParagraphs = [];
-      let currentPara = null;
-
-      for (let lIdx = 0; lIdx < block.lines.length; lIdx++) {
-        const line = block.lines[lIdx];
-        const nextLine = block.lines[lIdx + 1];
-
-        const isHeading = line.size >= 15 || (line.text.length < 80 && line.text.length > 3 && /^[A-ZА-ЯЎҚҒҲ0-9\s:–—.-]+$/.test(line.text));
-        const isBullet = /^[•\-–—*]\s+|\d+[\.)]\s+/.test(line.text);
-        const yDiff = nextLine ? (nextLine.y - line.y) : 999;
-        const isParagraphEnd = isHeading || isBullet || yDiff > (line.size * 1.8);
-
-        if (isHeading || isBullet) {
-          if (currentPara) {
-            mergedParagraphs.push(currentPara);
-            currentPara = null;
+          if (it.str.trim() === '') {
+            forceSpaceNext = true;
+            lastX = it.x;
+            lastWidth = it.width;
+            continue;
           }
-          mergedParagraphs.push({
-            text: line.text,
-            isHeading,
-            isBullet,
-            size: line.size
-          });
-        } else {
-          if (!currentPara) {
-            currentPara = { text: line.text, isHeading: false, isBullet: false, size: line.size };
+
+          const gap = idx === 0 ? 0 : (it.x - (lastX + lastWidth));
+          const isNewWord = forceSpaceNext || (gap > (it.size * 0.22));
+          forceSpaceNext = false;
+          const isLargeGap = gap > 28; // jadval ustuni yoki keng ajratgich
+
+          if (!currRun) {
+            currRun = {
+              text: it.str,
+              isBold: it.isBold,
+              isItalic: it.isItalic,
+              size: it.size,
+              fontFamily: it.fontFamily,
+              x: it.x,
+              isLargeGap: false
+            };
           } else {
-            if (currentPara.text.endsWith('-')) {
-              currentPara.text = currentPara.text.slice(0, -1) + line.text;
+            if (currRun.isBold === it.isBold &&
+                currRun.isItalic === it.isItalic &&
+                Math.abs(currRun.size - it.size) <= 1 &&
+                !isLargeGap) {
+              currRun.text += (isNewWord ? ' ' : '') + it.str;
             } else {
-              currentPara.text += ' ' + line.text;
+              runs.push(currRun);
+              currRun = {
+                text: it.str,
+                isBold: it.isBold,
+                isItalic: it.isItalic,
+                size: it.size,
+                fontFamily: it.fontFamily,
+                x: it.x,
+                isLargeGap: isLargeGap
+              };
             }
           }
-          if (isParagraphEnd) {
-            mergedParagraphs.push(currentPara);
-            currentPara = null;
+
+          lastX = it.x;
+          lastWidth = it.width;
+        }
+        if (currRun && currRun.text.trim()) runs.push(currRun);
+
+        if (runs.length > 0) {
+          const lineText = runs.map(r => r.text).join(' ').trim();
+          if (lineText) {
+            const minX = runs[0].x;
+            const lastR = runs[runs.length - 1];
+            const maxX = lastR.x + (lastR.text.length * lastR.size * 0.55);
+            const lineWidth = maxX - minX;
+            const centerX = (minX + maxX) / 2;
+            const avgSize = Math.round(runs.reduce((s, r) => s + r.size, 0) / runs.length);
+            const isAllBold = runs.every(r => r.isBold);
+            const hasMultipleColumns = runs.some(r => r.isLargeGap);
+
+            lines.push({
+              y: yKey,
+              minX,
+              maxX,
+              lineWidth,
+              centerX,
+              runs,
+              text: lineText,
+              avgSize,
+              isAllBold,
+              hasMultipleColumns
+            });
           }
         }
       }
-      if (currentPara) mergedParagraphs.push(currentPara);
 
-      for (const p of mergedParagraphs) {
-        children.push(new Paragraph({
-          children: [new TextRun({
-            text: p.text,
-            bold: p.isHeading,
-            size: p.isHeading ? 26 : 24, // 13pt yoki 12pt
-            font: 'Times New Roman',
-            color: p.isHeading ? '0F172A' : '1E293B',
-          })],
-          heading:   p.isHeading ? HeadingLevel.HEADING_2 : undefined,
-          alignment: p.isHeading ? AlignmentType.CENTER : AlignmentType.JUSTIFIED,
-          spacing:   { before: p.isHeading ? 240 : (p.isBullet ? 80 : 0), after: p.isHeading ? 120 : 120, line: 360 },
-        }));
+      // ── 2. Satrlarni bloklarga (Sarlavha, Jadval, Xatboshi) ajratish ──
+      let pageHtml = `<div class="pdf-word-page" style="margin-bottom:28px;">`;
+      if (totalPages > 1) {
+        pageHtml += `<div style="font-size:11px; color:#94a3b8; border-bottom:1px solid #e2e8f0; padding-bottom:4px; margin-bottom:14px; text-align:right;">Sahifa ${pageNum} / ${totalPages}</div>`;
       }
+
+      let lIdx = 0;
+      while (lIdx < lines.length) {
+        const line = lines[lIdx];
+
+        // A) Jadvallar yoki ustunli ma'lumotlar
+        if (line.hasMultipleColumns && line.runs.length >= 2) {
+          const tableRows = [];
+          while (lIdx < lines.length && (lines[lIdx].hasMultipleColumns || (tableRows.length > 0 && lines[lIdx].runs.length >= 2))) {
+            tableRows.push(lines[lIdx]);
+            lIdx++;
+          }
+
+          const maxCols = Math.max(...tableRows.map(r => r.runs.length));
+          const colWidthPct = Math.round(100 / maxCols);
+
+          const docxRows = tableRows.map(r => new TableRow({
+            children: r.runs.map(cellRun => new TableCell({
+              width: { size: colWidthPct, type: WidthType.PERCENTAGE },
+              children: [
+                new Paragraph({
+                  children: [new TextRun({
+                    text: cellRun.text,
+                    bold: cellRun.isBold,
+                    italics: cellRun.isItalic,
+                    size: cellRun.size * 2,
+                    font: cellRun.fontFamily
+                  })],
+                  spacing: { before: 60, after: 60 }
+                })
+              ]
+            }))
+          }));
+
+          docxChildren.push(new Table({
+            width: { size: 100, type: WidthType.PERCENTAGE },
+            rows: docxRows
+          }));
+          docxChildren.push(new Paragraph({ spacing: { after: 120 } }));
+
+          pageHtml += `<table style="width:100%; border-collapse:collapse; margin:14px 0;">`;
+          for (const r of tableRows) {
+            pageHtml += `<tr>`;
+            for (const c of r.runs) {
+              const weight = c.isBold ? 'font-weight:bold;' : '';
+              const italic = c.isItalic ? 'font-style:italic;' : '';
+              pageHtml += `<td style="border:1px solid #cbd5e1; padding:6px 10px; font-size:11pt; ${weight} ${italic}">${c.text}</td>`;
+            }
+            pageHtml += `</tr>`;
+          }
+          pageHtml += `</table>`;
+          continue;
+        }
+
+        // B) Sarlavha (Heading) aniqlash
+        const isCentered = Math.abs(line.centerX - vp.width / 2) < 45 && line.lineWidth < vp.width * 0.72;
+        const isRightAligned = line.minX > vp.width * 0.48 && line.lineWidth < vp.width * 0.48;
+        const isTitleText = /^[A-ZА-ЯЎҚҒҲ0-9\s:–—.-]+$/.test(line.text) && line.text.length < 80 && line.text.length > 3;
+        const isHeading = line.avgSize >= 13.5 || (isCentered && (line.isAllBold || isTitleText));
+
+        if (isHeading) {
+          const docxRuns = line.runs.map(r => new TextRun({
+            text: r.text,
+            bold: true,
+            italics: r.isItalic,
+            size: Math.max(26, r.size * 2), // kamida 13pt
+            font: r.fontFamily,
+            color: '0F172A'
+          }));
+
+          docxChildren.push(new Paragraph({
+            heading: line.avgSize >= 15 ? HeadingLevel.HEADING_1 : HeadingLevel.HEADING_2,
+            alignment: isCentered ? AlignmentType.CENTER : (isRightAligned ? AlignmentType.RIGHT : AlignmentType.LEFT),
+            spacing: { before: 240, after: 120 },
+            children: docxRuns
+          }));
+
+          const alignCss = isCentered ? 'center' : (isRightAligned ? 'right' : 'left');
+          pageHtml += `<h2 style="text-align:${alignCss}; font-size:15pt; font-weight:bold; margin:16px 0 10px; color:#0f172a; font-family:'Times New Roman',serif;">${line.text}</h2>`;
+          fullExtractedText += line.text + '\n\n';
+          lIdx++;
+          continue;
+        }
+
+        // C) O'ng tomonga tekislangan metama'lumotlar (Sana, Kimga, Imzo)
+        if (isRightAligned) {
+          const docxRuns = line.runs.map(r => new TextRun({
+            text: r.text,
+            bold: r.isBold,
+            italics: r.isItalic,
+            size: r.size * 2,
+            font: r.fontFamily,
+            color: '1E293B'
+          }));
+
+          docxChildren.push(new Paragraph({
+            alignment: AlignmentType.RIGHT,
+            spacing: { before: 40, after: 60 },
+            children: docxRuns
+          }));
+
+          pageHtml += `<p style="text-align:right; margin:4px 0; color:#334155; font-family:'Times New Roman',serif;">${line.text}</p>`;
+          fullExtractedText += line.text + '\n';
+          lIdx++;
+          continue;
+        }
+
+        // D) Ro'yxat elementlari (Bullets / Numbered)
+        const isBullet = /^[•\-–—*]\s+|\d+[\.)]\s+/.test(line.text);
+        if (isBullet) {
+          const docxRuns = line.runs.map(r => new TextRun({
+            text: r.text,
+            bold: r.isBold,
+            italics: r.isItalic,
+            size: r.size * 2,
+            font: r.fontFamily,
+            color: '1E293B'
+          }));
+
+          docxChildren.push(new Paragraph({
+            alignment: AlignmentType.LEFT,
+            spacing: { before: 40, after: 60, line: 320 },
+            indent: { left: 360 },
+            children: docxRuns
+          }));
+
+          pageHtml += `<p style="text-align:left; padding-left:20px; margin:5px 0; font-family:'Times New Roman',serif;">${line.text}</p>`;
+          fullExtractedText += line.text + '\n';
+          lIdx++;
+          continue;
+        }
+
+        // E) Oddiy xatboshilar (Paragraphs)
+        const paraLines = [line];
+        lIdx++;
+
+        while (lIdx < lines.length) {
+          const nextL = lines[lIdx];
+          const prevL = paraLines[paraLines.length - 1];
+          const yDiff = nextL.y - prevL.y;
+
+          const nextIsHeading = nextL.avgSize >= 13.5 || (Math.abs(nextL.centerX - vp.width / 2) < 45 && nextL.isAllBold);
+          const nextIsRight = nextL.minX > vp.width * 0.48 && nextL.lineWidth < vp.width * 0.48;
+          const nextIsBullet = /^[•\-–—*]\s+|\d+[\.)]\s+/.test(nextL.text);
+          const nextIsTable = nextL.hasMultipleColumns;
+          const isLargeLineGap = yDiff > (prevL.avgSize * 1.85);
+
+          if (nextIsHeading || nextIsRight || nextIsBullet || nextIsTable || isLargeLineGap) {
+            break;
+          }
+
+          paraLines.push(nextL);
+          lIdx++;
+        }
+
+        const paraDocxRuns = [];
+        let paraHtmlContent = '';
+
+        for (let pLineIdx = 0; pLineIdx < paraLines.length; pLineIdx++) {
+          const pLine = paraLines[pLineIdx];
+          for (let rIdx = 0; rIdx < pLine.runs.length; rIdx++) {
+            const run = pLine.runs[rIdx];
+            const needSpace = rIdx > 0 || (pLineIdx > 0 && !paraDocxRuns[paraDocxRuns.length - 1]?.text?.endsWith('-'));
+            const runText = (needSpace ? ' ' : '') + run.text;
+
+            paraDocxRuns.push(new TextRun({
+              text: runText,
+              bold: run.isBold,
+              italics: run.isItalic,
+              size: run.size * 2,
+              font: run.fontFamily,
+              color: '1E293B'
+            }));
+
+            const weightStyle = run.isBold ? 'font-weight:bold;' : '';
+            const italicStyle = run.isItalic ? 'font-style:italic;' : '';
+            paraHtmlContent += `<span style="${weightStyle} ${italicStyle}">${runText}</span>`;
+          }
+        }
+
+        const isIndented = paraLines[0].minX > 55 && paraLines[0].minX < 110;
+        docxChildren.push(new Paragraph({
+          alignment: AlignmentType.JUSTIFIED,
+          indent: isIndented ? { firstLine: 720 } : undefined, // 0.5 dyuym (1.27 sm) xatboshi
+          spacing: { before: 60, after: 120, line: 320 },
+          children: paraDocxRuns
+        }));
+
+        pageHtml += `<p style="text-align:justify; text-indent:${isIndented ? '2em' : '0'}; margin-bottom:10px; line-height:1.75; font-family:'Times New Roman',serif;">${paraHtmlContent}</p>`;
+        fullExtractedText += paraLines.map(l => l.text).join(' ') + '\n\n';
+      }
+
+      pageHtml += `</div>`;
+      previewPagesHtml.push(pageHtml);
+
+      const progressPct = 12 + Math.round((pageNum / totalPages) * 65);
+      setProgress('pdf2word', progressPct,
+        `Sahifa ${pageNum}/${totalPages} formatlanmoqda...`,
+        `Jami ${totalPages} sahifa · Hozir: ${pageNum}-sahifa`);
     }
 
+    setProgress('pdf2word', 85, 'Word (.docx) hujjati yaratilmoqda...');
+
     const doc = new Document({
-      creator:     'DocConvert',
-      title:       file.name.replace(/\.pdf$/i, ''),
-      description: 'DocConvert orqali PDF dan aylantirilgan',
+      creator: 'DocConvert AI',
+      title: file.name.replace(/\.pdf$/i, ''),
+      description: 'DocConvert orqali PDF dan mukammal formatda aylantirilgan',
       sections: [{
         properties: {
-          page: { margin: { top: 1440, right: 1440, bottom: 1440, left: 1440 } },
+          page: {
+            margin: { top: 1440, right: 1440, bottom: 1440, left: 1440 }
+          }
         },
-        children,
-      }],
+        children: docxChildren
+      }]
     });
 
-    setProgress('pdf2word', 90, 'Fayl yozilmoqda...');
+    setProgress('pdf2word', 95, 'Fayl saqlanmoqda...');
     state.p2wBlob = await Packer.toBlob(doc);
+    state.extractedText = fullExtractedText.trim();
+
+    // ── Natijani ko'rsatish ──
     setProgress('pdf2word', 100, '✓ Tayyor!');
 
-    // Natija
-    state.extractedText = allBlocks
-      .flatMap(b => b.lines.map(l => l.text))
-      .join('\n');
-    const totalWords = state.extractedText.trim()
-      ? state.extractedText.trim().split(/\s+/).length
-      : 0;
-    const previewText = state.extractedText.split('\n').slice(0, 60).join('\n');
-
+    const totalWords = state.extractedText ? state.extractedText.split(/\s+/).length : 0;
     document.getElementById('rcm-pdf2word').textContent =
-      `${totalPages} sahifa · ${totalWords} ta so'z · ${fmtSize(state.p2wBlob.size)}`;
-    document.getElementById('rct-pdf2word').textContent =
-      previewText || '(Matn topilmadi — bu PDF rasm-asosida bo\'lishi mumkin)';
+      `${totalPages} sahifa · ~${totalWords} ta so'z · ${fmtSize(state.p2wBlob.size)}`;
+
+    const previewContainer = document.getElementById('wp-pdf2word');
+    if (previewContainer) {
+      previewContainer.innerHTML = previewPagesHtml.join('<hr style="border:none; border-top:1px dashed #cbd5e1; margin:28px 0;"/>');
+    }
 
     document.getElementById('dl-pdf2word').onclick = () => {
       saveAs(state.p2wBlob, file.name.replace(/\.pdf$/i, '') + '_converted.docx');
-      toast('Word fayl yuklandi!', 'success');
+      toast('Word (.docx) fayl yuklandi!', 'success');
     };
 
     setTimeout(() => {
       hide('pr-pdf2word');
       show('rc-pdf2word');
-      toast('PDF muvaffaqiyatli Word ga aylantirildi!', 'success');
-    }, 600);
+      toast('PDF mukammal formatda Word ga aylantirildi! 📄', 'success');
+    }, 500);
 
   } catch (err) {
     console.error('[PDF→Word]', err);
-    showError('pdf2word', 'Xato: ' + (err.message || 'Noma\'lum xato'));
+    showError('pdf2word', 'Xato: ' + (err.message || 'Noma\'lum xato yuz berdi'));
   }
 }
 
