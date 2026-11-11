@@ -1,5 +1,5 @@
 // Service Worker for DocConvert AI (PWA Offline Support)
-const CACHE_NAME = 'docconvert-ai-v2.2';
+const CACHE_NAME = 'docconvert-ai-v2.3';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
